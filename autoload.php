@@ -1,11 +1,11 @@
 <?php
 
-define('LOOP_ROOT', dirname(__FILE__));
+define('LISTENER_ROOT', dirname(__FILE__));
 
 class MyAutoload
 {
     public $classMap = array(
-        'cookpan001\\Loop' => array(LOOP_ROOT),
+        'cookpan001\\Listener' => array(LISTENER_ROOT),
     );
     
     public function __autoload($class_name)

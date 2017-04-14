@@ -1,6 +1,6 @@
 <?php
 
-namespace cookpan001\Loop;
+namespace cookpan001\Listener;
 
 class Handler
 {
