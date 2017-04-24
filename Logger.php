@@ -16,27 +16,39 @@ class Logger
     {
         $date = $this->date();
         if(is_array($message)){
-            $str = $date."\t". json_encode($message)."\n";
+            $str = $date."\t". json_encode($message, JSON_PARTIAL_OUTPUT_ON_ERROR|JSON_UNESCAPED_UNICODE)."\n";
         }else if(is_object($message)){
-            $str = $date."\t".json_encode($message)."\n";
+            $str = $date."\t".json_encode($message, JSON_PARTIAL_OUTPUT_ON_ERROR|JSON_UNESCAPED_UNICODE)."\n";
         }else{
             $str = $date."\t".$message."\n";
         }
         global $STDOUT;
-        fwrite($STDOUT, $str);
+        if($STDOUT){
+            fwrite($STDOUT, $str);
+        }else if(STDOUT && is_resource(STDOUT)){
+            fwrite(STDOUT, $str);
+        }else{
+            echo $str;
+        }
     }
     
     public function error($message)
     {
         $date = $this->date();
         if(is_array($message)){
-            $str = $date."\t". json_encode($message)."\n";
+            $str = $date."\t". json_encode($message, JSON_PARTIAL_OUTPUT_ON_ERROR|JSON_UNESCAPED_UNICODE)."\n";
         }else if(is_object($message)){
-            $str = $date."\t".json_encode($message)."\n";
+            $str = $date."\t".json_encode($message, JSON_PARTIAL_OUTPUT_ON_ERROR|JSON_UNESCAPED_UNICODE)."\n";
         }else{
             $str = $date."\t".$message."\n";
         }
         global $STDERR;
-        fwrite($STDERR, $str);
+        if($STDERR){
+            fwrite($STDERR, $str);
+        }else if(STDERR && is_resource(STDERR)){
+            fwrite(STDERR, $str);
+        }else{
+            echo $str;
+        }
     }
 }

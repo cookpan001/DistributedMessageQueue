@@ -13,26 +13,35 @@ class Listener
     public $codec = null;
     public $connections = array();
     public $callback = null;
+    public $logger = null;
+    public $socketLoop = null;
+    public $id = 0;
 
     public function __construct($port, $codec)
     {
         $this->port = $port;
         $this->codec = $codec;
+        $this->logger = new Logger();
+    }
+    
+    public function __call($name, $arguments)
+    {
+        $this->logger->log('unknown method: '.$name . ', args: '. json_encode($arguments)."\n");
     }
     
     public function create()
     {
         $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
         if(!$socket){
-            $this->log("Unable to create socket");
+            $this->logger->log("Unable to create socket");
             exit(1);
         }
         if(!socket_bind($socket, $this->host, $this->port)){
-            $this->log("Unable to bind socket");
+            $this->logger->log("Unable to bind socket");
             exit(1);
         }
         if(!socket_listen($socket)){
-            $this->log("Unable to bind socket");
+            $this->logger->log("Unable to bind socket");
             exit(1);
         }
         socket_set_nonblock($socket);
@@ -44,9 +53,53 @@ class Listener
         $this->codec = $codec;
     }
     
-    public function setCallback(callable $func)
+    public function on($condition, callable $func)
     {
-        $this->callback = $func;
+        $this->callback[$condition][] = $func;
+        return $this;
+    }
+    
+    public function emit($condition, ...$param)
+    {
+        if(!isset($this->callback[$condition])){
+            return false;
+        }
+        foreach($this->callback[$condition] as $callback){
+            call_user_func_array($callback, $param);
+        }
+        return true;
+    }
+    
+    public function setId($id)
+    {
+        $this->id = $id;
+    }
+    
+    public function errorHandler($errno, $errstr, $errfile, $errline, $errcontext)
+    {
+        $str = sprintf("%s:%d\nerrcode:%d\t%s\n%s\n", $errfile, $errline, $errno, $errstr, json_encode($errcontext, JSON_PARTIAL_OUTPUT_ON_ERROR));
+        $this->logger->error($str);
+    }
+    
+    public function fatalHandler()
+    {
+        $error = error_get_last();
+        if(empty($error)){
+            return ;
+        }
+        $this->logger->error(json_encode($error, JSON_PARTIAL_OUTPUT_ON_ERROR));
+    }
+    
+    public function loop()
+    {
+        if (\Ev::supportedBackends() & ~\Ev::recommendedBackends() & \Ev::BACKEND_KQUEUE) {
+            if(PHP_OS != 'Darwin'){
+                $this->socketLoop = new \EvLoop(\Ev::BACKEND_KQUEUE);
+            }
+        }
+        if (!$this->socketLoop) {
+            $this->socketLoop = \EvLoop::defaultLoop();
+        }
     }
     
     public function start()
@@ -58,7 +111,6 @@ class Listener
             $that->process($clientSocket);
             ++$that->allConnections;
         });
-        \Ev::run();
     }
     
     public function process($clientSocket)
@@ -67,26 +119,29 @@ class Listener
         $conn = new Connection($clientSocket);
         $that = $this;
         $id = uniqid();
+        $that->logger->log("new connection to {$that->host}:{$that->port}, id:{$id}");
         $watcher = new \EvIo($clientSocket, \Ev::READ, function() use ($that, $conn){
-            $that->log('----------------HANDLE BEGIN----------------');
+            $that->logger->log('----------------HANDLE BEGIN----------------');
             $str = $that->receive($conn);
             if(false !== $str){
                 if($that->codec){
                     $commands = $that->codec->unserialize($str);
-                    if($that->callback){
-                        $that->callback($conn, $commands);
+                    $that->logger->log($commands);
+                    $ret = $this->emit('message', $conn, $commands);
+                    if(false === $ret){
+                        $that->reply($conn, 1);
                     }
                 }
             }
-            $that->log('----------------HANDLE FINISH---------');
+            $that->logger->log('----------------HANDLE FINISH---------');
         });
         $conn->setId($id);
         $conn->setWatcher($watcher);
         $this->connections[$id] = $conn;
-        \Ev::run();
+        $this->emit('connect', $conn);
     }
     
-    public function receive($conn)
+    public function receive(Connection $conn)
     {
         $tmp = '';
         $str = '';
@@ -103,10 +158,7 @@ class Listener
                 break;
             }
             if((0 === $errorCode && null === $tmp) || EPIPE == $errorCode || ECONNRESET == $errorCode){
-                if(isset($this->connections[$conn->id])){
-                    unset($this->connections[$conn->id]);
-                }
-                $conn->close();
+                $this->closed($conn);
                 return false;
             }
             if(0 === $num){
@@ -116,28 +168,36 @@ class Listener
         return $str;
     }
     
+    public function closed($conn)
+    {
+        if(isset($this->connections[$conn->id])){
+            unset($this->connections[$conn->id]);
+        }
+        $this->logger->log('connection: '.$conn->id . ' closed');
+        $conn->close();
+    }
+    
     public function reply($conn, ...$param)
     {
         if($this->codec){
-            $message = $this->codec->serialize($param);
+            if(count($param) > 1){
+                $message = $this->codec->serialize($param);
+            }else{
+                $message = $this->codec->serialize($param[0]);
+            }
+            $this->logger->log($message);
             $num = socket_write($conn->clientSocket, $message, strlen($message));
             if(false === $num){
-                if(isset($this->connections[$conn->id])){
-                    unset($this->connections[$conn->id]);
-                }
-                $conn->close();
-                return;
+                $this->closed($conn);
+                return false;
             }
             $tmp = '';
             socket_recv($conn->clientSocket, $tmp, self::FRAME_SIZE, MSG_DONTWAIT);
             $errorCode = socket_last_error($conn->clientSocket);
             socket_clear_error($conn->clientSocket);
             if((0 === $errorCode && null === $tmp) || EPIPE == $errorCode || ECONNRESET == $errorCode){
-                if(isset($this->connections[$conn->id])){
-                    unset($this->connections[$conn->id]);
-                }
-                $conn->close();
-                return;
+                $this->closed($conn);
+                return false;
             }
             if(strlen($tmp)){
                 $ret = $this->receive($conn);

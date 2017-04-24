@@ -19,7 +19,12 @@ class Connection
     
     public function __destruct()
     {
-        $this->_close();
+        $this->close();
+    }
+    
+    public function __call($name, $arguments)
+    {
+        var_export('unknown method: '.$name . ', args: '. json_encode($arguments)."\n");
     }
     
     public function setWatcher($watcher)
