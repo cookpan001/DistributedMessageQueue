@@ -17,11 +17,15 @@ class Listener
     public $socketLoop = null;
     public $id = 0;
 
-    public function __construct($port, $codec)
+    public function __construct($port, $codec, $logger = null)
     {
         $this->port = $port;
         $this->codec = $codec;
-        $this->logger = new Logger();
+        if(is_null($logger)){
+            $this->logger = new Logger();
+        }else{
+            $this->logger = $logger;
+        }
     }
     
     public function __call($name, $arguments)
@@ -37,7 +41,7 @@ class Listener
             exit(1);
         }
         if(!socket_bind($socket, $this->host, $this->port)){
-            $this->logger->log("Unable to bind socket");
+            $this->logger->log("Unable to bind socket port: ".$this->port);
             exit(1);
         }
         if(!socket_listen($socket)){
@@ -126,9 +130,9 @@ class Listener
             if(false !== $str){
                 if($that->codec){
                     $commands = $that->codec->unserialize($str);
-                    $that->logger->log($commands);
-                    $ret = $this->emit('message', $conn, $commands);
+                    $ret = $that->emit('message', $this, $conn, $commands);
                     if(false === $ret){
+                        $that->logger->log($commands);
                         $that->reply($conn, 1);
                     }
                 }
@@ -138,7 +142,7 @@ class Listener
         $conn->setId($id);
         $conn->setWatcher($watcher);
         $this->connections[$id] = $conn;
-        $this->emit('connect', $conn);
+        $this->emit('connect', $this, $conn);
     }
     
     public function receive(Connection $conn)

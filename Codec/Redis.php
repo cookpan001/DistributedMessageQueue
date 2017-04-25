@@ -3,6 +3,10 @@
 namespace cookpan001\Listener\Codec;
 
 use cookpan001\Listener\Codec;
+use cookpan001\Listener\Reply\Error;
+use cookpan001\Listener\Reply\OK;
+use cookpan001\Listener\Reply\Bulk;
+use cookpan001\Listener\Reply\TimeoutException;
 
 class Redis implements Codec
 {
@@ -10,24 +14,24 @@ class Redis implements Codec
     
     public function encode(...$data)
     {
-        
+        return $this->serialize($data);
     }
     
     public function serialize($data)
     {
-        if($data instanceof Reply\Error){
+        if($data instanceof Error){
             return '-'.$data->getMessage().self::END;
         }
-        if($data instanceof Reply\OK){
+        if($data instanceof OK){
             return '+OK'.self::END;
         }
-        if($data instanceof Reply\TimeoutException){
+        if($data instanceof TimeoutException){
             return '*-1'.self::END;
         }
         if(is_int($data)){
             return ':'.$data.self::END;
         }
-        if($data instanceof Reply\Bulk){
+        if($data instanceof Bulk){
             return '$'.strlen($data->str).self::END.$data->str.self::END;
         }
         if(is_string($data)){

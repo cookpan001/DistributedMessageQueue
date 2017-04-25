@@ -4,6 +4,11 @@ namespace cookpan001\Listener;
 
 class Logger
 {
+    public function __call($name, $arguments)
+    {
+        var_export('unknown method: '.$name . ', args: '. json_encode($arguments)."\n");
+    }
+    
     public function date()
     {
         list($m1, ) = explode(' ', microtime());

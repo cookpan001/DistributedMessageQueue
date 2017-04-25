@@ -4,33 +4,26 @@ namespace cookpan001\Listener;
 
 class Client
 {
-
-    /**
-     * @var callable
-     */
-    private $func;
-
     const SIZE = 1500;
     const END = "\r\n";
     
     private $host;
     public $socket = null;
     private $watcher = null;
-    private $key = 'test';
     public $codec = null;
-    public $onConnect = null;
+    public $logger = null;
+    public $callback = array();
+    public $id = 0;
     
-    public function __construct($host = '127.0.0.1', $port = 6379, Callable $func = null)
+    public function __construct($host = '127.0.0.1', $port = 6379)
     {
         $this->port = $port;
         $this->host = $host;
-        $this->func = $func;
-        $this->setParam();
     }
     
-    public function setParam($key)
+    public function __call($name, $arguments)
     {
-        $this->key = $key;
+        var_export('unknown method: '.$name . ', args: '. json_encode($arguments)."\n");
     }
     
     public function setCodec($codec)
@@ -38,9 +31,14 @@ class Client
         $this->codec = $codec;
     }
     
-    public function setOnConnect(callable $onConnect = null)
+    public function setLogger($logger)
     {
-        $this->onConnect = $onConnect;
+        $this->logger = $logger;
+    }
+    
+    public function setId($id)
+    {
+        $this->id = $id;
     }
     
     public function connect()
@@ -67,35 +65,30 @@ class Client
     
     public function log($message)
     {
+        if(!is_null($this->logger)){
+            $this->logger->log($message);
+            return;
+        }
         list($m1, ) = explode(' ', microtime());
         $date = date('Y-m-d H:i:s') . substr($m1, 1);
         echo $date."\t".$message."\n";
     }
     
-    public function register()
+    public function on($condition, callable $func)
     {
-        $buffer = "zadd hello 0 test\r\n";
-        socket_write($this->socket, $buffer, strlen($buffer));
+        $this->callback[$condition][] = $func;
+        return $this;
     }
     
-    public function read()
+    public function emit($condition, ...$param)
     {
-        $tmp = '';
-        socket_recv($this->socket, $tmp, self::SIZE, MSG_DONTWAIT);
-        $errorCode = socket_last_error($this->socket);
-        $this->log("read , errorCode: $errorCode, error:".socket_strerror($errorCode));
-        if (EAGAIN == $errorCode || EINPROGRESS == $errorCode) {
-            socket_clear_error($this->socket);
-            return '';
-        }
-        if( (0 === $errorCode && null === $tmp) ||EPIPE == $errorCode || ECONNRESET == $errorCode){
-            $this->watcher->stop();
-            socket_close($this->socket);
-            $this->connect();
-            $this->process();
+        if(!isset($this->callback[$condition])){
             return false;
         }
-        return $tmp;
+        foreach($this->callback[$condition] as $callback){
+            call_user_func_array($callback, $param);
+        }
+        return true;
     }
     
     public function receive()
@@ -128,6 +121,16 @@ class Client
         return $str;
     }
     
+    public function push(...$param)
+    {
+        if(count($param) > 1){
+            $str = $this->codec->serialize($param);
+        }else{
+            $str = $this->codec->serialize($param[0]);
+        }
+        $this->write($str);
+    }
+    
     public function write($str)
     {
         $num = socket_write($this->socket, $str, strlen($str));
@@ -143,91 +146,32 @@ class Client
         return $num;
     }
     
-    public function parse(&$cur = 1)
-    {
-        $pos = strpos($this->response, self::END, $cur);
-        switch ($this->response[0]) {
-            case '-' : // Error message
-                $ret = substr($this->response, $cur, $pos - 1);
-                $this->response = substr($this->response, $pos + 2);
-                break;
-            case '+' : // Single line response
-                $ret = substr($this->response, $cur, $pos - 1);
-                $this->response = substr($this->response, $pos + 2);
-                break;
-            case ':' : //Integer number
-                $ret = (int)substr($this->response, $cur, $pos - 1);
-                $this->response = substr($this->response, $pos + 2);
-                break;
-            case '$' : //bulk string or null
-                $ret = (int)substr($this->response, $cur, $pos - 1);
-                if($ret == '-1'){
-                    $ret = null;
-                    $this->response = substr($this->response, $pos + 2);
-                }else{
-                    $ret = substr($this->response, $pos + 2, intval($ret));
-                    $this->response = substr($this->response, $pos + 2 + intval($ret) + 2);
-                }
-                break;
-            case '*' : //Bulk data response
-                $length = (int)substr($this->response, $cur, $pos - 1);
-                $cur = $pos + 2;
-                if($length == -1){
-                    $ret = array();//empty array
-                    $this->response = substr($this->response, $cur);
-                    break;
-                }
-                for ($c = 0; $c < $length; $c ++) {
-                    if($this->response[$cur] == '$'){
-                        $strlen = '';
-                        $cur += 1;
-                        while($this->response[$cur] != "\r"){
-                            $strlen .= $this->response[$cur];
-                            ++$cur;
-                        }
-                        $cur += 2;
-                        if($strlen == '-1'){
-                            $ret[] = null;
-                        }else{
-                            $ret[] = substr($this->response, $cur, (int)$strlen);
-                            $cur += (int)$strlen + 2;
-                        }
-                    }else if($this->response[$cur] == '*'){
-                        $ret[] = $this->parse($cur);
-                    }
-                }
-                $this->response = substr($this->response, $cur);
-                break;
-            default :
-                break;
-        }
-        return $ret;
-    }
-    
     public function handle()
     {
         $str = $this->receive();
-        if(empty($str)){
-            return;
+        if(false === $str){
+            return false;
         }
-        $ret = $this->codec->unserialize($str);
-        if(is_callable($this->func)){
-            call_user_func_array($this->func, array($ret));
+        if('' === $str){
+            return true;
+        }
+        if($this->codec){
+            $data = $this->codec->unserialize($str);
+            $this->emit('message', $this, $data);
         }else{
-            $this->log(json_encode($ret));
+            $this->log('no codec found');
         }
+        $this->log(json_encode($data));
+        return true;
     }
     
     public function process()
     {
         $that = $this;
-        $this->watcher = new \EvIo($this->socket, Ev::WRITE, function ($w)use ($that){
+        $this->watcher = new \EvIo($this->socket, \Ev::WRITE, function ($w)use ($that){
             $w->stop();
-            $that->register();
-            if($that->onConnect){
-                $that->onConnect();
-            }
-            $that->watcher = new \EvIo($that->socket, Ev::READ, function() use ($that){
+            $that->emit('connect', $that);
+            $that->watcher = new \EvIo($that->socket, \Ev::READ, function() use ($that){
                 $that->handle();
             });
         });
