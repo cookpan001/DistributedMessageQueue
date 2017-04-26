@@ -120,15 +120,15 @@ class Listener
     public function process($clientSocket)
     {
         socket_set_nonblock($clientSocket);
-        $conn = new Connection($clientSocket);
+        $conn = new Connection($clientSocket, $this);
         $that = $this;
         $id = uniqid();
         $that->logger->log("new connection to {$that->host}:{$that->port}, id:{$id}");
         $watcher = new \EvIo($clientSocket, \Ev::READ, function() use ($that, $conn){
-            $that->logger->log('----------------HANDLE BEGIN----------------');
+            $that->logger->log('----------------'.__CLASS__.' BEGIN----------------');
             $str = $that->receive($conn);
             if(false !== $str){
-                if($that->codec){
+                if($that->codec && $str != "\r" && $str != "\n" && $str != "\r\n"){
                     $commands = $that->codec->unserialize($str);
                     $ret = $that->emit('message', $this, $conn, $commands);
                     if(false === $ret){
@@ -137,7 +137,7 @@ class Listener
                     }
                 }
             }
-            $that->logger->log('----------------HANDLE FINISH---------');
+            $that->logger->log('----------------'.__CLASS__.' FINISH---------------');
         });
         $conn->setId($id);
         $conn->setWatcher($watcher);
@@ -189,7 +189,6 @@ class Listener
             }else{
                 $message = $this->codec->serialize($param[0]);
             }
-            $this->logger->log($message);
             $num = socket_write($conn->clientSocket, $message, strlen($message));
             if(false === $num){
                 $this->closed($conn);

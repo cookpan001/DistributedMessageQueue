@@ -142,7 +142,7 @@ class Client
             $this->process();
             return false;
         }
-        $this->log("socket write len: ". json_encode($num) .", ". json_encode($str) );
+        //$this->log("socket write len: ". json_encode($num) .", ". json_encode($str) );
         return $num;
     }
     
@@ -161,7 +161,6 @@ class Client
         }else{
             $this->log('no codec found');
         }
-        $this->log(json_encode($data));
         return true;
     }
     

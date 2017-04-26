@@ -3,9 +3,6 @@
 namespace cookpan001\Listener\Codec;
 
 use cookpan001\Listener\Codec;
-use cookpan001\Listener\Reply\Error;
-use cookpan001\Listener\Reply\OK;
-use cookpan001\Listener\Reply\Bulk;
 use cookpan001\Listener\Reply\TimeoutException;
 
 class Redis implements Codec
@@ -19,11 +16,11 @@ class Redis implements Codec
     
     public function serialize($data)
     {
-        if($data instanceof Error){
-            return '-'.$data->getMessage().self::END;
+        if(is_string($data) && $data[0] == '-'){//Error
+            return '-'.$data.self::END;
         }
-        if($data instanceof OK){
-            return '+OK'.self::END;
+        if($data instanceof \Exception){//Error
+            return '-'.$data->getMessage().self::END;
         }
         if($data instanceof TimeoutException){
             return '*-1'.self::END;
@@ -31,21 +28,24 @@ class Redis implements Codec
         if(is_int($data)){
             return ':'.$data.self::END;
         }
-        if($data instanceof Bulk){
-            return '$'.strlen($data->str).self::END.$data->str.self::END;
+        if(is_string($data) && $data == 'OK'){
+            return '+'.$data.self::END;
         }
         if(is_string($data)){
-            return '+'.$data.self::END;
+            return '$'.strlen($data).self::END.$data.self::END;
         }
         if(is_null($data)){
             return '$-1'.self::END;
         }
-        $str = '*'.count($data).self::END;
+        $count = count($data);
+        $str = '*'.$count.self::END;
         foreach($data as $line){
             if(is_null($line)){
                 $str .= '$-1'.self::END;
+            }else if(is_int($line)){
+                $str .= ':'.$line.self::END;
             }else if(is_array($line)){
-                $str .= $this->serialize($line).self::END;
+                $str .= $this->serialize($line);
             }else{
                 $str .= '$'.strlen($line).self::END.$line.self::END;
             }
@@ -53,57 +53,73 @@ class Redis implements Codec
         return $str;
     }
 
-    private function parse($str)
+    public function parse(&$response, &$cur = 0)
     {
-        return preg_split('#\s+#', $str);
+        $pos = strpos($response, self::END, $cur);
+        if(false === $pos){
+            $ret = preg_split('#\s+#', $response);
+            $cur = strlen($response);
+            return $ret;
+        }
+        $ret = null;
+        switch ($response[$cur]) {
+            case '-' : // Error message
+                $ret = substr($response, $cur + 1, $pos - $cur - 1);
+                $cur = $pos + 2;
+                break;
+            case '+' : // Single line response
+                $ret = substr($response, $cur + 1, $pos - $cur - 1);
+                $cur = $pos + 2;
+                break;
+            case ':' : //Integer number
+                $ret = (int)substr($response, $cur + 1, $pos - $cur - 1);
+                $cur = $pos + 2;
+                break;
+            case '$' : //bulk string or null
+                $len = (int)substr($response, $cur + 1, $pos - $cur - 1);
+                if($len == -1){
+                    $ret = null;
+                    $cur = $pos + 2;
+                }else{
+                    $ret = substr($response, $pos + 2, $len);
+                    $cur = $pos + 2 + $len + 2;
+                }
+                break;
+            case '*' : //Bulk data response
+                $length = (int)substr($response, $cur + 1, $pos - $cur - 1);
+                $cur = $pos + 2;
+                if($length == -1){
+                    $ret = array();//empty array
+                    break;
+                }
+                if($length == 0){
+                    $ret = array();//empty array
+                    break;
+                }
+                for ($c = 0; $c < $length; $c ++) {
+                    //$cur += 1;
+                    //echo substr($response, $cur);
+                    $ret[] = $this->parse($response, $cur);
+                }
+                break;
+            default :
+                $ret = substr($response, $cur, $pos - $cur);
+                $cur = $pos + 2;
+                break;
+        }
+        return $ret;
     }
     
     public function unserialize($str)
     {
-        if(empty($str)){
-            return array();
+        $ret = array();
+        if("\r\n" == $str || "\r" == $str || "\n" == $str || '' == $str){
+            return $ret;
         }
-        $pos = 0;
-        $command = array();
-        $len = strlen($str);
-        while($pos < $len){
-            if($str[$pos] != '*'){
-                $position = strpos($str, self::END, $pos);
-                if(false === $position){
-                    $command[] = $this->parse(substr($str, $pos));
-                    $pos += strlen($str);
-                    continue;
-                }
-                if($position != $pos){
-                    $command[] = $this->parse(substr($str, $pos, $position - $pos));
-                    $pos += $position - $pos;
-                }
-                $pos += 2;
-                continue;
-            }
-            ++$pos;
-            $tmpCmd = array();
-            $count = '';
-            while($str[$pos] != "\r"){
-                $count .= $str[$pos];
-                ++$pos;
-            }
-            $pos += strlen(self::END);
-            $count = intval($count);
-            while($count){
-                ++$pos;
-                $strlen = '';
-                while($str[$pos] != "\r"){
-                    $strlen .= $str[$pos];
-                    ++$pos;
-                }
-                $pos += strlen(self::END);
-                $tmpCmd[] = substr($str, $pos, intval($strlen));
-                $pos += $strlen + strlen(self::END);
-                $count--;
-            }
-            $command[] = $tmpCmd;
+        $cur = 0;
+        while($cur < strlen($str)){
+            $ret[] = $this->parse($str, $cur);
         }
-        return $command;
+        return $ret;
     }
 }

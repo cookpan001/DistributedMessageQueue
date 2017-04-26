@@ -17,6 +17,7 @@ class Pipeline
     public $config = array(
         array(
             'codec' => 'cookpan001\Listener\Codec\Redis',
+            'class' => 'cookpan001\Listener\Bussiness\Service',
             'role' => 'server',
             'port' => 6379,
             'worker' => 1,
@@ -26,6 +27,7 @@ class Pipeline
         ),
         array(
             'codec' => 'cookpan001\Listener\Codec\Redis',
+            'class' => 'cookpan001\Listener\Bussiness\Exchange',
             'role' => 'server',
             'port' => 6380,
             'worker' => 1,
@@ -35,6 +37,7 @@ class Pipeline
         ),
         array(
             'codec' => 'cookpan001\Listener\Codec\Redis',
+            'class' => 'cookpan001\Listener\Bussiness\Pubsub',
             'role' => 'client',
             'port' => 6380,
             'worker' => 1,
@@ -90,11 +93,12 @@ class Pipeline
         $server->setId($conf['port']);
         $server->start();
         if(isset($conf['on'])){
+            $obj = isset($conf['class']) ? new $conf['class'] : $this;
             foreach($conf['on'] as $condition => $callback){
                 if(is_callable($callback)){
                     $server->on($condition, $callback);
                 }else{
-                    $server->on($condition, array($this, $callback));
+                    $server->on($condition, array($obj, $callback));
                 }
             }
         }
@@ -110,11 +114,12 @@ class Pipeline
         $client->connect();
         $client->process();
         if(isset($conf['on'])){
+            $obj = isset($conf['class']) ? new $conf['class'] : $this;
             foreach($conf['on'] as $condition => $callback){
                 if(is_callable($callback)){
                     $client->on($condition, $callback);
                 }else{
-                    $client->on($condition, array($this, $callback));
+                    $client->on($condition, array($obj, $callback));
                 }
             }
         }
@@ -163,10 +168,13 @@ class Pipeline
         } else {/* child */
             socket_close($ary[1]);
             $this->parent = $ary[0];
-            $server = new \cookpan001\Listener\Listener($port, $this->getCodec($conf['codec']));
-            $server->create();
-            $server->setId($port);
-            $server->start();
+            if($conf['role'] == 'server'){
+                $server = $this->createServer($conf);
+                //$this->listener[$server->id] = $server;
+            }else{
+                $client = $this->createClient($conf);
+                //$this->listener[$client->id] = $client;
+            }
         }
     }
     
@@ -177,38 +185,46 @@ class Pipeline
         }
         return null;
     }
-    
-    public function onMessage($server, $conn, $data)
-    {
-        if(empty($data)){
-            return;
-        }
-        $this->logger->log(__FUNCTION__.': '.json_encode($data));
-        $server->reply($conn, 1);
-    }
-    
-    public function onExchage($server, $conn, $data)
-    {
-        if(empty($data)){
-            return;
-        }
-        $this->logger->log(__FUNCTION__.': '.json_encode($data));
-        $server->reply($conn, 2);
-    }
-    
-    public function onConnect($client)
-    {
-        $this->logger->log(__FUNCTION__);
-        $client->push(3);
-    }
-    
-    public function onReceive($client, $data)
-    {
-        if(empty($data)){
-            return;
-        }
-        $this->logger->log(__FUNCTION__.': '.json_encode($data));
-    }
+//    /**
+//     * 主服务器收到从服务器时触发
+//     */
+//    public function onMessage($server, $conn, $data)
+//    {
+//        if(empty($data)){
+//            return;
+//        }
+//        $this->logger->log(__FUNCTION__.': '.json_encode($data));
+//        $server->reply($conn, 1);
+//    }
+//    /**
+//     * 服务器间信息交换时使用
+//     */
+//    public function onExchage($server, $conn, $data)
+//    {
+//        if(empty($data)){
+//            return;
+//        }
+//        $this->logger->log(__FUNCTION__.': '.json_encode($data));
+//        $server->reply($conn, 2);
+//    }
+//    /**
+//     * 连接到服务器时触发
+//     */
+//    public function onConnect($client)
+//    {
+//        $this->logger->log(__FUNCTION__);
+//        $client->push('register', 'client', 1);
+//    }
+//    /**
+//     * 收到服务器的消息时触发
+//     */
+//    public function onReceive($client, $data)
+//    {
+//        if(empty($data)){
+//            return;
+//        }
+//        $this->logger->log(__FUNCTION__.': '.json_encode($data));
+//    }
 }
 
 $app = new Pipeline();
