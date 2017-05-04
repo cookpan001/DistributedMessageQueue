@@ -6,6 +6,7 @@ use \cookpan001\Listener\Logger;
 
 class Acceptor
 {
+    private $emmiter;
     public $logger = null;
     public $storage = null;
     public $register = array();
@@ -13,10 +14,11 @@ class Acceptor
     public $subscriber = array();
     public $timer = array();
     
-    public function __construct($storage)
+    public function __construct($storage, $emmiter)
     {
         $this->logger = new Logger;
         $this->storage = $storage;
+        $this->emmiter = $emmiter;
     }
     
     public function __destruct()

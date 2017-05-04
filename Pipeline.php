@@ -14,6 +14,7 @@ class Pipeline
     public $parent = null;
     public $logger = null;
     public $storage = null;
+    public $emmiter = null;
     
     public $config = array(
         array(
@@ -29,7 +30,7 @@ class Pipeline
         ),
         array(
             'codec' => 'cookpan001\Listener\Codec\Redis',
-            'class' => 'cookpan001\Listener\Bussiness\Exchange',
+            'class' => 'cookpan001\Listener\Bussiness\Mediator',
             'role' => 'server',
             'port' => 6380,
             'worker' => 1,
@@ -40,7 +41,7 @@ class Pipeline
         ),
         array(
             'codec' => 'cookpan001\Listener\Codec\Redis',
-            'class' => 'cookpan001\Listener\Bussiness\Pubsub',
+            'class' => 'cookpan001\Listener\Bussiness\Waitor',
             'role' => 'client',
             'host' => '127.0.0.1',
             'port' => 6380,
@@ -56,6 +57,7 @@ class Pipeline
     {
         $this->logger = new cookpan001\Listener\Logger();
         $this->storage = new cookpan001\Listener\Storage();
+        $this->emmiter = new cookpan001\Listener\Emmiter();
     }
     
     public function __destruct()
@@ -98,7 +100,7 @@ class Pipeline
         $server->setId($conf['port']);
         $server->start();
         if(isset($conf['on'])){
-            $obj = isset($conf['class']) ? new $conf['class']($this->storage) : $this;
+            $obj = isset($conf['class']) ? new $conf['class']($this->storage, $this->emmiter) : $this;
             foreach($conf['on'] as $condition => $callback){
                 if(is_callable($callback)){
                     $server->on($condition, $callback);
@@ -119,7 +121,7 @@ class Pipeline
         $client->connect();
         $client->process();
         if(isset($conf['on'])){
-            $obj = isset($conf['class']) ? new $conf['class']($this->storage) : $this;
+            $obj = isset($conf['class']) ? new $conf['class']($this->storage, $this->emmiter) : $this;
             foreach($conf['on'] as $condition => $callback){
                 if(is_callable($callback)){
                     $client->on($condition, $callback);
