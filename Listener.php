@@ -125,24 +125,24 @@ class Listener
         $id = uniqid();
         $that->logger->log("new connection to {$that->host}:{$that->port}, id:{$id}");
         $watcher = new \EvIo($clientSocket, \Ev::READ, function() use ($that, $conn){
-            $that->logger->log('----------------'.__CLASS__.' BEGIN----------------');
             $str = $that->receive($conn);
             if(false !== $str){
+                $that->logger->log('----------------'.__CLASS__.' BEGIN----------------');
                 if($that->codec && $str != "\r" && $str != "\n" && $str != "\r\n"){
                     $commands = $that->codec->unserialize($str);
-                    $ret = $that->emit('message', $this, $conn, $commands);
+                    $ret = $that->emit('message', $conn, $commands);
                     if(false === $ret){
                         $that->logger->log($commands);
                         $that->reply($conn, 1);
                     }
                 }
+                $that->logger->log('----------------'.__CLASS__.' FINISH---------------');
             }
-            $that->logger->log('----------------'.__CLASS__.' FINISH---------------');
         });
         $conn->setId($id);
         $conn->setWatcher($watcher);
         $this->connections[$id] = $conn;
-        $this->emit('connect', $this, $conn);
+        $this->emit('connect', $conn);
     }
     
     public function receive(Connection $conn)

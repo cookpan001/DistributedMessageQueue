@@ -8,9 +8,10 @@ class Pubsub
 {
     public $logger = null;
     
-    public function __construct()
+    public function __construct($storage)
     {
         $this->logger = new Logger;
+        $this->storage = $storage;
     }
     
     public function __destruct()
@@ -31,9 +32,9 @@ class Pubsub
      */
     public function onReceive($client, $data)
     {
+        $this->logger->log(__FUNCTION__.': '.json_encode($data));
         if(empty($data)){
             return;
         }
-        $this->logger->log(__FUNCTION__.': '.json_encode($data));
     }
 }

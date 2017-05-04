@@ -13,15 +13,17 @@ class Pipeline
     public $codec = array();
     public $parent = null;
     public $logger = null;
+    public $storage = null;
     
     public $config = array(
         array(
             'codec' => 'cookpan001\Listener\Codec\Redis',
-            'class' => 'cookpan001\Listener\Bussiness\Service',
+            'class' => 'cookpan001\Listener\Bussiness\Acceptor',
             'role' => 'server',
             'port' => 6379,
             'worker' => 1,
             'on' => array(
+                'connect' => 'onConnect',
                 'message' => 'onMessage',
             ),
         ),
@@ -32,6 +34,7 @@ class Pipeline
             'port' => 6380,
             'worker' => 1,
             'on' => array(
+                'connect' => 'onConnect',
                 'message' => 'onExchage',
             ),
         ),
@@ -39,6 +42,7 @@ class Pipeline
             'codec' => 'cookpan001\Listener\Codec\Redis',
             'class' => 'cookpan001\Listener\Bussiness\Pubsub',
             'role' => 'client',
+            'host' => '127.0.0.1',
             'port' => 6380,
             'worker' => 1,
             'on' => array(
@@ -51,6 +55,7 @@ class Pipeline
     public function __construct()
     {
         $this->logger = new cookpan001\Listener\Logger();
+        $this->storage = new cookpan001\Listener\Storage();
     }
     
     public function __destruct()
@@ -93,7 +98,7 @@ class Pipeline
         $server->setId($conf['port']);
         $server->start();
         if(isset($conf['on'])){
-            $obj = isset($conf['class']) ? new $conf['class'] : $this;
+            $obj = isset($conf['class']) ? new $conf['class']($this->storage) : $this;
             foreach($conf['on'] as $condition => $callback){
                 if(is_callable($callback)){
                     $server->on($condition, $callback);
@@ -107,14 +112,14 @@ class Pipeline
     
     public function createClient($conf)
     {
-        $client = new \cookpan001\Listener\Client('127.0.0.1', $conf['port']);
+        $client = new \cookpan001\Listener\Client($conf['host'], $conf['port']);
         $client->setCodec($this->getCodec($conf['codec']));
         $client->setLogger($this->logger);
         $client->setId('client');
         $client->connect();
         $client->process();
         if(isset($conf['on'])){
-            $obj = isset($conf['class']) ? new $conf['class'] : $this;
+            $obj = isset($conf['class']) ? new $conf['class']($this->storage) : $this;
             foreach($conf['on'] as $condition => $callback){
                 if(is_callable($callback)){
                     $client->on($condition, $callback);
@@ -185,46 +190,6 @@ class Pipeline
         }
         return null;
     }
-//    /**
-//     * 主服务器收到从服务器时触发
-//     */
-//    public function onMessage($server, $conn, $data)
-//    {
-//        if(empty($data)){
-//            return;
-//        }
-//        $this->logger->log(__FUNCTION__.': '.json_encode($data));
-//        $server->reply($conn, 1);
-//    }
-//    /**
-//     * 服务器间信息交换时使用
-//     */
-//    public function onExchage($server, $conn, $data)
-//    {
-//        if(empty($data)){
-//            return;
-//        }
-//        $this->logger->log(__FUNCTION__.': '.json_encode($data));
-//        $server->reply($conn, 2);
-//    }
-//    /**
-//     * 连接到服务器时触发
-//     */
-//    public function onConnect($client)
-//    {
-//        $this->logger->log(__FUNCTION__);
-//        $client->push('register', 'client', 1);
-//    }
-//    /**
-//     * 收到服务器的消息时触发
-//     */
-//    public function onReceive($client, $data)
-//    {
-//        if(empty($data)){
-//            return;
-//        }
-//        $this->logger->log(__FUNCTION__.': '.json_encode($data));
-//    }
 }
 
 $app = new Pipeline();

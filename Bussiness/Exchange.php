@@ -11,9 +11,10 @@ class Exchange
     
     public $logger = null;
     
-    public function __construct()
+    public function __construct($storage)
     {
         $this->logger = new Logger;
+        $this->storage = $storage;
     }
     
     public function __destruct()
@@ -24,7 +25,7 @@ class Exchange
     /**
      * 服务器间信息交换时使用
      */
-    public function onExchage($server, $conn, $data)
+    public function onExchage($conn, $data)
     {
         if(empty($data)){
             return;
@@ -32,21 +33,29 @@ class Exchange
         $this->logger->log(__FUNCTION__.': '.json_encode($data));
         foreach($data as $param){
             $cmd = array_shift($param);
-            array_unshift($param, $conn);
-            array_unshift($param, $server);
             if(method_exists($this, $cmd)){
-                call_user_func_array(array($this, $cmd), $param);
+                call_user_func(array($this, $cmd), $conn, ...$param);
             }
         }
-        $server->reply($conn, 1);
     }
     
-    public function register($server, $conn, ...$para)
+    public function onConnect($conn)
     {
-        $this->register[$conn->id] = $conn;
-        $conn->on('close', function($id){
+        if(!isset($this->register[$conn->id])){
+            $this->register[$conn->id] = $conn;
+        }
+        $conn->on('close', function($id) use ($conn){
             unset($this->register[$id]);
         });
-        $server->reply($conn, $conn->id);
+    }
+    
+    public function register($conn, ...$para)
+    {
+        $conn->reply($conn->id);
+    }
+    
+    public function notify($conn, ...$para)
+    {
+        
     }
 }

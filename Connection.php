@@ -14,15 +14,16 @@ class Connection
     public $callback = array();
     public $server = null;
     
-    public function __construct($socket, $server = null)
+    public function __construct($socket, $server)
     {
         $this->clientSocket = $socket;
+        $this->server = $server;
     }
     
     public function __destruct()
     {
         $this->close();
-        var_export('__destruct connection');
+        var_export("__destruct connection\n");
     }
     
     public function __call($name, $arguments)
@@ -50,11 +51,12 @@ class Connection
             socket_close($this->clientSocket);
         }
         $this->clientSocket = null;
-        $this->emit('close', $this->id);
+        $this->emit('close', $this->id);//close函数还要用到下面的变量
         $this->callback = null;
         if($this->server){
             $this->server = null;
         }
+        $this->keys = null;
     }
     
     public function getSocket()
@@ -77,5 +79,17 @@ class Connection
             call_user_func_array($callback, $param);
         }
         return true;
+    }
+    
+    public function reply(...$param)
+    {
+        if($this->server){
+            $this->server->reply($this, ...$param);
+        }
+    }
+    
+    public function subscribe($key)
+    {
+        $this->keys[$key] = $key;
     }
 }
