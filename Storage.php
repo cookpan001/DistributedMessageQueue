@@ -1,5 +1,7 @@
 <?php
 
+namespace cookpan001\Listener;
+
 class Storage
 {
     public $keys = array();
@@ -11,9 +13,23 @@ class Storage
         
     }
     
-    public function set($key, $field, $value)
+    public function set($key, $field, $value, $that = null, $diff = 0)
     {
-        $this->keys[$key][$field] = $value;
+        if(!$this->has($key, $field)){
+            $this->keys[$key][$field] = $value;
+        }
+        if($diff > 0){
+            if($this->timer[$key][$value]){
+                $this->timer[$key][$value]->stop();
+            }
+            if($that){
+                $this->timer[$key][$value] = new \EvTimer(0, $diff, function ($w) use ($that, $key, $value){
+                    $w->stop();
+                    unset($this->timer[$key][$value]);
+                    $that->send($key, $value);
+                });
+            }
+        }
     }
     
     public function get($key, $field)
@@ -21,9 +37,50 @@ class Storage
         return isset($this->keys[$key][$field]) ? $this->keys[$key][$field] : null;
     }
     
+    public function has($key, $field)
+    {
+        return isset($this->keys[$key][$field]) ? true : false;
+    }
+    
+    public function num($key)
+    {
+        return isset($this->keys[$key]) ? count($this->keys[$key]) : 0;
+    }
+    
     public function remove($key, $field)
     {
         unset($this->keys[$key][$field]);
+        if(isset($this->timer[$key][$field])){
+            $this->timer[$key][$field]->stop();
+            unset($this->timer[$key][$field]);
+        }
+    }
+    
+    public function getAndRemove($key)
+    {
+        if(empty($this->keys[$key])){
+            return array();
+        }
+        $tmp = $this->keys[$key];
+        unset($this->keys[$key]);
+        foreach($tmp as $value){
+            if(isset($this->timer[$key][$value])){
+                $this->timer[$key][$value]->stop();
+                unset($this->timer[$key][$value]);
+            }
+        }
+        return $tmp;
+    }
+    
+    public function timestamp($key, $value)
+    {
+        if(!isset($this->timer[$key][$value])){
+            return null;
+        }
+        if($this->timer[$key][$value]->remaining <= 0){
+            return 0;
+        }
+        return time() + $this->timer[$key][$value]->remaining;
     }
     
     public function on($condition, callable $func)

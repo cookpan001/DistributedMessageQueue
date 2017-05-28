@@ -2,23 +2,25 @@
 
 namespace cookpan001\Listener;
 
-class Client
+class Agent
 {
     const SIZE = 1500;
     const END = "\r\n";
     
-    private $host;
-    public $socket = null;
     private $watcher = null;
     public $codec = null;
     public $logger = null;
     public $callback = array();
     public $id = 0;
+    public $instances = array();
+    public $connected = array();
     
-    public function __construct($host = '127.0.0.1', $port = 6379)
+    public function __construct($config)
     {
-        $this->port = $port;
-        $this->host = $host;
+        foreach($config as $line){
+            list($host, $port) = $line;
+            $this->instances[$host.':'.$port] = $line;
+        }
     }
     
     public function __call($name, $arguments)
@@ -43,23 +45,22 @@ class Client
     
     public function connect()
     {
-        while(true){
-            $this->socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-            if ($this->socket === FALSE) {
-                //echo "socket_create() failed: reason: ".socket_strerror(socket_last_error()) . "\n";
-                sleep(1);
+        foreach($this->instances as $from => $line){
+            if(isset($this->connected[$from])){
                 continue;
             }
-            if(!socket_connect($this->socket, $this->host, $this->port)){
-                //echo "socket_connect() failed: reason: ".socket_strerror(socket_last_error()) . "\n";
-                sleep(1);
+            list($host, $port) = $line;
+            $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+            if ($socket === FALSE) {
                 continue;
             }
-            $this->log("connected to {$this->host}:{$this->port}");
-            break;
+            if(!socket_connect($socket, $host, $port)){
+                continue;
+            }
+            $this->log("connected to {$host}:{$port}");
+            socket_set_nonblock($socket);
+            $this->connected[$from] = $socket;
         }
-        socket_set_nonblock($this->socket);
-        return $this;
     }
     
     public function log($message)
@@ -90,25 +91,28 @@ class Client
         return true;
     }
     
-    public function receive()
+    public function receive($from)
     {
         $tmp = '';
         $str = '';
         $i = 0;
+        $socket = $this->connected[$from];
         while(true){
             ++$i;
-            $num = socket_recv($this->socket, $tmp, self::SIZE, MSG_DONTWAIT);
+            $num = socket_recv($socket, $tmp, self::SIZE, MSG_DONTWAIT);
             if(is_int($num) && $num > 0){
                 $str .= $tmp;
             }
-            $errorCode = socket_last_error($this->socket);
-            socket_clear_error($this->socket);
+            $errorCode = socket_last_error($socket);
+            socket_clear_error($socket);
             if (EAGAIN == $errorCode || EINPROGRESS == $errorCode) {
                 break;
             }
             if((0 === $errorCode && null === $tmp) || EPIPE == $errorCode || ECONNRESET == $errorCode){
-                $this->watcher->stop();
-                socket_close($this->socket);
+                $this->watcher[$from]->stop();
+                unset($this->watcher[$from]);
+                socket_close($socket);
+                unset($this->connected[$from]);
                 $this->connect();
                 $this->process();
                 return false;
@@ -120,23 +124,38 @@ class Client
         return $str;
     }
     
-    public function push(...$param)
+    public function push($to, ...$param)
     {
         if(count($param) > 1){
             $str = $this->codec->serialize($param);
         }else{
             $str = $this->codec->serialize($param[0]);
         }
-        $this->write($str);
+        $this->write($to, $str);
     }
     
-    public function write($str)
+    public function broadcast(...$param)
     {
-        $num = socket_write($this->socket, $str, strlen($str));
-        $errorCode = socket_last_error($this->socket);
+        if(count($param) > 1){
+            $str = $this->codec->serialize($param);
+        }else{
+            $str = $this->codec->serialize($param[0]);
+        }
+        foreach($this->connected as $to => $__){
+            $this->write($to, $str);
+        }
+    }
+    
+    public function write($to, $str)
+    {
+        $socket = $this->connected[$to];
+        $num = socket_write($socket, $str, strlen($str));
+        $errorCode = socket_last_error($socket);
         if((EPIPE == $errorCode || ECONNRESET == $errorCode)){
-            $this->watcher->stop();
-            socket_close($this->socket);
+            $this->watcher[$to]->stop();
+            unset($this->watcher[$to]);
+            socket_close($socket);
+            unset($this->connected[$to]);
             $this->connect();
             $this->process();
             return false;
@@ -145,9 +164,9 @@ class Client
         return $num;
     }
     
-    public function handle()
+    public function handle($from)
     {
-        $str = $this->receive();
+        $str = $this->receive($from);
         if(false === $str){
             return false;
         }
@@ -156,7 +175,7 @@ class Client
         }
         if($this->codec){
             $data = $this->codec->unserialize($str);
-            $this->emit('message', $data);
+            $this->emit('message', $from, $data);
         }else{
             $this->log('no codec found');
         }
@@ -166,18 +185,17 @@ class Client
     public function process()
     {
         $that = $this;
-        $this->watcher = new \EvIo($this->socket, \Ev::WRITE, function ($w)use ($that){
-            $w->stop();
-            $that->emit('connect');
-            $that->watcher = new \EvIo($that->socket, \Ev::READ, function() use ($that){
-                $that->handle();
+        foreach ($this->connected as $from => $socket){
+            if(isset($this->watcher[$from])){
+                continue;
+            }
+            $this->watcher[$from] = new \EvIo($socket, \Ev::WRITE, function ($w)use ($that, $socket, $from){
+                $w->stop();
+                $that->emit('connect');
+                $that->watcher[$from] = new \EvIo($socket, \Ev::READ, function() use ($that, $from){
+                    $that->handle($from);
+                });
             });
-        });
-    }
-    
-    public function start()
-    {
-        $this->connect();
-        $this->process();
+        }
     }
 }

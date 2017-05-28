@@ -14,7 +14,7 @@ class Pipeline
     public $parent = null;
     public $logger = null;
     public $storage = null;
-    public $emmiter = null;
+    public $emiter = null;
     
     public $config = array(
         array(
@@ -27,6 +27,9 @@ class Pipeline
                 'connect' => 'onConnect',
                 'message' => 'onMessage',
             ),
+            'emit' => array(
+                'waitor' => 'onWaitor',
+            ),
         ),
         array(
             'codec' => 'cookpan001\Listener\Codec\Redis',
@@ -37,6 +40,9 @@ class Pipeline
             'on' => array(
                 'connect' => 'onConnect',
                 'message' => 'onExchage',
+            ),
+            'emit' => array(
+                '' => '',
             ),
         ),
         array(
@@ -50,6 +56,24 @@ class Pipeline
                 'connect' => 'onConnect',
                 'message' => 'onReceive',
             ),
+            'emit' => array(
+                'notify' => 'onNotify',
+            ),
+        ),
+        array(
+            'codec' => 'cookpan001\Listener\Codec\Redis',
+            'class' => 'cookpan001\Listener\Bussiness\Waitor',
+            'role' => 'client',
+            'host' => '127.0.0.1',
+            'port' => 6379,
+            'worker' => 1,
+            'on' => array(
+                'connect' => 'onConnect',
+                'message' => 'onReceive',
+            ),
+            'emit' => array(
+                'notify' => 'onNotify',
+            ),
         ),
     );
     
@@ -57,7 +81,7 @@ class Pipeline
     {
         $this->logger = new cookpan001\Listener\Logger();
         $this->storage = new cookpan001\Listener\Storage();
-        $this->emmiter = new cookpan001\Listener\Emmiter();
+        $this->emiter = new cookpan001\Listener\Emiter();
     }
     
     public function __destruct()
@@ -100,13 +124,18 @@ class Pipeline
         $server->setId($conf['port']);
         $server->start();
         if(isset($conf['on'])){
-            $obj = isset($conf['class']) ? new $conf['class']($this->storage, $this->emmiter) : $this;
+            $obj = isset($conf['class']) ? new $conf['class']($this->storage, $this->emiter) : $this;
             foreach($conf['on'] as $condition => $callback){
                 if(is_callable($callback)){
                     $server->on($condition, $callback);
                 }else{
                     $server->on($condition, array($obj, $callback));
                 }
+            }
+        }
+        if(isset($conf['emit'])){
+            foreach($conf['emit'] as $condition => $callback){
+                $this->emiter->on($condition, array($server, $callback));
             }
         }
         return $server;
@@ -121,13 +150,18 @@ class Pipeline
         $client->connect();
         $client->process();
         if(isset($conf['on'])){
-            $obj = isset($conf['class']) ? new $conf['class']($this->storage, $this->emmiter) : $this;
+            $obj = isset($conf['class']) ? new $conf['class']($client, $this->storage, $this->emiter) : $this;
             foreach($conf['on'] as $condition => $callback){
                 if(is_callable($callback)){
                     $client->on($condition, $callback);
                 }else{
                     $client->on($condition, array($obj, $callback));
                 }
+            }
+        }
+        if(isset($conf['emit'])){
+            foreach($conf['emit'] as $condition => $callback){
+                $this->emiter->on($condition, array($client, $callback));
             }
         }
         return $client;
@@ -183,14 +217,6 @@ class Pipeline
                 //$this->listener[$client->id] = $client;
             }
         }
-    }
-    
-    public function getServer($port)
-    {
-        if(isset($this->listener[$port])){
-            return $this->listener[$port];
-        }
-        return null;
     }
 }
 

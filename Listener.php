@@ -108,6 +108,7 @@ class Listener
     
     public function start()
     {
+        $this->emit('local', $this->host, $this->port);
         $socket = $this->socket;
         $that = $this;
         $this->serverWatcher = new \EvIo($this->socket, \Ev::READ, function () use ($that, $socket){

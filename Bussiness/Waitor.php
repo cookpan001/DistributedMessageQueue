@@ -2,19 +2,21 @@
 
 namespace cookpan001\Listener\Bussiness;
 
-use \cookpan001\Listener\Logger;
-
 class Waitor
 {
-    private $emmiter;
+    private $client;
+    private $emiter;
     private $storage;
     public $logger = null;
+    public $app = null;
     
-    public function __construct($storage, $emmiter)
+    public function __construct($app, $client)
     {
-        $this->logger = new Logger;
-        $this->storage = $storage;
-        $this->emmiter = $emmiter;
+        $this->app = $app;
+        $this->logger = $this->app->logger;
+        $this->storage = $this->app->storage;
+        $this->emiter = $this->app->emiter;
+        $this->client = $client;
     }
     
     public function __destruct()
@@ -22,27 +24,59 @@ class Waitor
         $this->logger = null;
     }
     
+    public function getInstance($name)
+    {
+        return $this->app->getInstance($name);
+    }
     /**
      * 连接到服务器时触发
      */
-    public function onConnect($client)
+    public function onConnect()
     {
         $this->logger->log(__FUNCTION__);
-        $client->push('register', 'client', 1);
+        $this->client->push('register', 'client', 1);
     }
     /**
      * 收到服务器的消息时触发
      */
-    public function onReceive($client, $data)
+    public function onMessage($data)
     {
         $this->logger->log(__FUNCTION__.': '.json_encode($data));
         if(empty($data)){
             return;
         }
+        foreach($data as $param){
+            $cmd = array_shift($param);
+            $command = 'on'.ucfirst($cmd);
+            if(method_exists($this, $command)){
+                call_user_func(array($this, $command), ...$param);
+            }else{
+                $this->emiter->emit($cmd, ...$param);
+            }
+        }
     }
-    
-    public function register($client, ...$param)
+    /**
+     * 处理由Acceptor发来的消息
+     */
+    public function onAcceptor($op, ...$data)
     {
-        $client->push('register', ...$param);
+        $this->client->push($op, ...$data);
+    }
+    /**
+     * 收到mediator的消息, 由Socket传输, 自己处理或交由Acceptor处理
+     */
+    public function onMediator($op, ...$data)
+    {
+        switch ($op) {
+            case 'push':
+                $this->emiter->emit('waitor', $op, ...$data);
+                break;
+            case 'ack':
+                list($key, $value) = $data;
+                $this->storage->remove($key, $value);
+                break;
+            default:
+                break;
+        }
     }
 }

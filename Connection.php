@@ -43,6 +43,7 @@ class Connection
     
     public function close()
     {
+        $this->emit('close', $this->id);//close函数还要用到下面的变量
         if($this->watcher){
             $this->watcher->stop();
         }
@@ -51,7 +52,6 @@ class Connection
             socket_close($this->clientSocket);
         }
         $this->clientSocket = null;
-        $this->emit('close', $this->id);//close函数还要用到下面的变量
         $this->callback = null;
         if($this->server){
             $this->server = null;
@@ -91,5 +91,15 @@ class Connection
     public function subscribe($key)
     {
         $this->keys[$key] = $key;
+    }
+    
+    public function keys()
+    {
+        return array_keys($this->keys);
+    }
+    
+    public function unsubscribe($key)
+    {
+        unset($this->keys[$key]);
     }
 }
