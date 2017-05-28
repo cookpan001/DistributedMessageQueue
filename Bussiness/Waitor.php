@@ -9,14 +9,16 @@ class Waitor
     private $storage;
     public $logger = null;
     public $app = null;
+    public $name = null;
     
-    public function __construct($app, $client)
+    public function __construct($app, $name, $client)
     {
         $this->app = $app;
         $this->logger = $this->app->logger;
         $this->storage = $this->app->storage;
         $this->emiter = $this->app->emiter;
         $this->client = $client;
+        $this->name = strtolower($name);
     }
     
     public function __destruct()

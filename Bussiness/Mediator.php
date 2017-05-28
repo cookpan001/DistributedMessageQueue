@@ -9,17 +9,18 @@ class Mediator
     
     public $keys = array();
     public $connections = array();
-    public $register = array();
     
     public $logger = null;
     public $app = null;
+    public $name = null;
     
-    public function __construct($app)
+    public function __construct($app, $name)
     {
         $this->app = $app;
         $this->logger = $this->app->logger;
         $this->storage = $this->app->storage;
         $this->emiter = $this->app->emiter;
+        $this->name = strtolower($name);
     }
     
     public function __destruct()
@@ -58,9 +59,6 @@ class Mediator
         }
         $conn->on('close', function($id){
             $conn = $this->connections[$id];
-            if(isset($this->register[$id])){
-                unset($this->register[$id]);
-            }
             $keys = $conn->keys();
             $update = array();
             foreach($keys as $key){
@@ -71,12 +69,9 @@ class Mediator
             }
             unset($this->connections[$id]);
             if($update){
-                foreach($this->register as $brotherId => $__){
-                    if(!isset($this->connections[$brotherId])){
-                        continue;
-                    }
-                    $conn = $this->connections[$brotherId];
-                    $conn->reply('notify', array_keys($update), array_values($update));
+                $coordinator = $this->app->getInstance('coordiantor');
+                if($coordinator){
+                    $coordinator->notify(array_keys($update), array_values($update));
                 }
             }
         });
@@ -105,6 +100,13 @@ class Mediator
             return true;
         }
         $this->storage->set($key, $value, $value);
+        $exchanger = $this->app->getInstance('exchanger');
+        if($exchanger){
+            $ret = $exchanger->push($key, $value);
+            if($ret){
+                $this->storage->remove($key, $value);
+            }
+        }
         return false;
     }
     
@@ -124,12 +126,9 @@ class Mediator
             $update[$key] = count($this->keys[$key]);
         }
         if($update){
-            foreach($this->register as $brotherId => $__){
-                if(!isset($this->connections[$brotherId])){
-                    continue;
-                }
-                $conn = $this->connections[$brotherId];
-                $conn->reply('notify', array_keys($update), array_values($update));
+            $coordinator = $this->app->getInstance('coordiantor');
+            if($coordinator){
+                $coordinator->notify(array_keys($update), array_values($update));
             }
         }
     }
@@ -148,30 +147,31 @@ class Mediator
             $update[$key] = count($this->keys[$key]);
         }
         if($update){
-            foreach($this->register as $brotherId => $__){
-                if(!isset($this->connections[$brotherId])){
-                    continue;
-                }
-                $conn = $this->connections[$brotherId];
-                $conn->reply('notify', array_keys($update), array_values($update));
+            $coordinator = $this->app->getInstance('coordiantor');
+            if($coordinator){
+                $coordinator->notify(array_keys($update), array_values($update));
             }
         }
     }
-    //有其他Mediator连接到来，发送本地监听的key到该连接
-    public function exRegister($conn, $host, $port)
-    {
-        $this->register[$conn->id] = $host .':'. $port;
-        $conn->reply('notify', array_keys($this->keys), array_map('array_sum', $this->keys));
-    }
     
-    public function exInfo($conn)
+    public function push($key, $value)
     {
-        $info = array(
-            'connections: '.count($this->connections),
-            'keys: '.json_encode(array_keys($this->keys)),
-            'keys_detail: '.array_map('array_sum', $this->keys),
-            'registered: '.json_encode(array_values($this->register)),
-        );
-        $conn->reply($info);
+        if(empty($this->keys[$key])){
+            $this->storage->set($key, $value, $value);
+            return false;
+        }
+        foreach($this->keys[$key] as $id => $num){
+            if($num <= 0){
+                unset($this->keys[$key][$id]);
+                continue;
+            }
+            if(!isset($this->connections[$id])){
+                unset($this->keys[$key][$id]);
+                continue;
+            }
+            $this->connections[$id]->reply('mediator', 'push', $key, $value);
+            return true;
+        }
+        return false;
     }
 }

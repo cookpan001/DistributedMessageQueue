@@ -4,14 +4,14 @@ namespace cookpan001\Listener;
 
 class Initializer
 {
+    public $config = array();
     public $listener = array();
     public $handler = array();
-    public $worker = array();
     public $codec = array();
-    public $parent = null;
     public $logger = null;
     public $storage = null;
     public $emiter = null;
+    public $ignore = array();
     
     public function __construct()
     {
@@ -40,11 +40,11 @@ class Initializer
     
     public function createServer($conf)
     {
-        $server = new \cookpan001\Listener\Listener($conf['port'], $this->getCodec($conf['codec']), $this->logger);
+        $server = new \cookpan001\Listener\Listener($conf['host'], $conf['port'], $this->getCodec($conf['codec']), $this->logger);
         $server->create();
         $server->setId($conf['name']);
         if(isset($conf['on'])){
-            $obj = new $conf['class']($this);
+            $obj = new $conf['class']($this, $conf['name']);
             foreach($conf['on'] as $condition => $callback){
                 if(is_callable($callback)){
                     $server->on($condition, $callback);
@@ -52,7 +52,7 @@ class Initializer
                     $server->on($condition, array($obj, $callback));
                 }
             }
-            $this->handler[$conf['name']] = $obj;
+            $this->handler[strtolower($conf['name'])] = $obj;
         }
         if(isset($conf['emit'])){
             foreach($conf['emit'] as $condition => $callback){
@@ -65,7 +65,13 @@ class Initializer
     public function createClient($conf)
     {
         if($conf['role'] == 'agent'){
-            $client = new \cookpan001\Listener\Agent($conf['instance']);
+            $instances = array();
+            foreach($conf['instance'] as $line){
+                if(!isset($this->ignore[implode(':', $line)])){
+                    $instances[] = array($line);
+                }
+            }
+            $client = new \cookpan001\Listener\Agent($instances);
         }else{
             $client = new \cookpan001\Listener\Client($conf['host'], $conf['port']);
         }
@@ -73,7 +79,7 @@ class Initializer
         $client->setLogger($this->logger);
         $client->setId($conf['name']);
         if(isset($conf['on'])){
-            $obj = new $conf['class']($this, $client);
+            $obj = new $conf['class']($this, $conf['name'], $client);
             foreach($conf['on'] as $condition => $callback){
                 if(is_callable($callback)){
                     $client->on($condition, $callback);
@@ -81,7 +87,7 @@ class Initializer
                     $client->on($condition, array($obj, $callback));
                 }
             }
-            $this->handler[$conf['name']] = $obj;
+            $this->handler[strtolower($conf['name'])] = $obj;
         }
         if(isset($conf['emit'])){
             foreach($conf['emit'] as $condition => $callback){
@@ -100,6 +106,7 @@ class Initializer
             if($conf['role'] == 'server'){
                 $app = $this->createServer($conf);
                 $this->listener[$app->id] = $app;
+                $this->ignore[$conf['host'].':'. $conf['port']] = 1;
             }else{
                 $app = $this->createClient($conf);
                 $this->listener[$app->id] = $app;
@@ -109,6 +116,7 @@ class Initializer
                     $after[] = array($this->listener[$app->id], $funcName);
                 }
             }
+            $this->config[strtolower($conf['name'])] = $conf;
         }
         foreach($after as $func){
             list($obj, $name) = $func;
@@ -121,8 +129,24 @@ class Initializer
         }
     }
     
-    public function getInstance($name)
+    public function getInstance($name0)
     {
+        $name = strtolower($name0);
+        if(isset($this->handler[$name])){
+            return $this->handler[$name];
+        }
+        return null;
+    }
+    
+    public function getConfig($name0, $field = '')
+    {
+        $name = strtolower($name0);
+        if($field){
+            if(isset($this->handler[$name][$field])){
+                return $this->handler[$name][$field];
+            }
+            return null;
+        }
         if(isset($this->handler[$name])){
             return $this->handler[$name];
         }

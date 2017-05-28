@@ -17,8 +17,9 @@ class Listener
     public $socketLoop = null;
     public $id = 0;
 
-    public function __construct($port, $codec, $logger = null)
+    public function __construct($host, $port, $codec, $logger = null)
     {
+        $this->host = $host;
         $this->port = $port;
         $this->codec = $codec;
         if(is_null($logger)){

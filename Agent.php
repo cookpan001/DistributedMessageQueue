@@ -8,6 +8,7 @@ class Agent
     const END = "\r\n";
     
     private $watcher = null;
+    private $periodTimer = null;
     public $codec = null;
     public $logger = null;
     public $callback = array();
@@ -197,5 +198,14 @@ class Agent
                 });
             });
         }
+    }
+    
+    public function start()
+    {
+        $this->periodTimer = new \EvPeriodic(0, 30, null, function(){
+            $this->connect();
+        });
+        $this->connect();
+        $this->process();
     }
 }

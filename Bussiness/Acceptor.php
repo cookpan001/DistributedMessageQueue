@@ -11,13 +11,15 @@ class Acceptor
     public $subscriber = array();
     public $timer = array();
     public $app = null;
+    public $name = null;
     
-    public function __construct($app)
+    public function __construct($app, $name)
     {
         $this->app = $app;
         $this->logger = $this->app->logger;
         $this->storage = $this->app->storage;
         $this->emiter = $this->app->emiter;
+        $this->name = strtolower($name);
     }
     
     public function __destruct()
@@ -25,11 +27,6 @@ class Acceptor
         $this->register = null;
         $this->subscriber = null;
         $this->emiter = null;
-    }
-    
-    public function setApp($app)
-    {
-        
     }
     
     public function getInstance($name)

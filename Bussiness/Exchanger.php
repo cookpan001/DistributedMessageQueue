@@ -8,12 +8,13 @@ class Exchanger
     public $connections = array();
     public $register = array();
     
-    public $logger = null;
     public $app = null;
+    public $name = null;
     
-    public function __construct($app)
+    public function __construct($app, $name)
     {
         $this->app = $app;
+        $this->name = strtolower($name);
     }
     
     public function __destruct()
@@ -76,12 +77,34 @@ class Exchanger
     }
     
     //有其他Mediator连接到来，发送本地监听的key到该连接
-    public function exRegister($conn, $host, $port)
+    public function exRegister($conn, $host, $port, $keys, $values)
     {
         $this->register[$conn->id] = $host .':'. $port;
-        $conn->reply('notify', array_keys($this->keys), array_map('array_sum', $this->keys));
+        $mediator = $this->getInstance('mediator');
+        if($mediator->keys){
+            $conn->reply('notify', array_keys($mediator->keys), array_map('array_sum', $mediator->keys));
+        }
+        foreach($keys as $i => $key){
+            $this->keys[$key][$conn->id] = $values[$i];
+            $conn->subscribe($key);
+        }
     }
     
+    public function exNotify($conn, $keys, $values)
+    {
+        foreach($keys as $i => $key){
+            if($values[$i] <= 0){
+                unset($this->keys[$key][$conn->id]);
+                $conn->unsubscribe($key);
+            }else{
+                $this->keys[$key][$conn->id] = $values[$i];
+                $conn->subscribe($key);
+            }
+        }
+    }
+    /**
+     * 查询服务状态
+     */
     public function exInfo($conn)
     {
         $info = array(
@@ -89,7 +112,27 @@ class Exchanger
             'keys: '.json_encode(array_keys($this->keys)),
             'keys_detail: '.array_map('array_sum', $this->keys),
             'registered: '.json_encode(array_values($this->register)),
+            'mediator:' . $this->app->getConfig('mediator', 'host').':'.$this->app->getConfig('mediator', 'port'),
+            'exchanger:' . $this->app->getConfig('exchanger', 'host').':'.$this->app->getConfig('exchanger', 'port'),
         );
         $conn->reply($info);
+    }
+    /**
+     * 从Mediator收到的消息, 需要转发到一个监听的Coordinator
+     */
+    public function push($key, $value)
+    {
+        if(!isset($this->keys[$key])){
+            return false;
+        }
+        foreach($this->keys[$key] as $connId => $num){
+            if($num <= 0){
+                continue;
+            }
+            $conn = $this->connections[$connId];
+            $conn->reply('push', $key, $value);
+            return true;
+        }
+        return false;
     }
 }
