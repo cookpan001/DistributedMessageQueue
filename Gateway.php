@@ -8,6 +8,7 @@ $config = array(
         'class' => 'cookpan001\Listener\Bussiness\Acceptor',
         'name' => 'acceptor',
         'role' => 'server',
+        'host' => '127.0.0.1',
         'port' => 6379,
         'worker' => 1,
         'on' => array(

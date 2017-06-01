@@ -9,7 +9,7 @@ $config = array(
         'role' => 'server',
         'name' => 'mediator',
         'host' => '127.0.0.1',
-        'port' => 6380,
+        'port' => 6381,
         'on' => array(
             'connect' => 'onConnect',
             'message' => 'onExchage',
@@ -26,7 +26,7 @@ $config = array(
         'role' => 'server',
         'name' => 'exchanger',
         'host' => '127.0.0.1',
-        'port' => 7380,
+        'port' => 7381,
         'on' => array(
             'connect' => 'onConnect',
             'message' => 'onExchage',
@@ -51,7 +51,7 @@ $config = array(
             
         ),
         'instance' => array(
-            array('127.0.0.1', 7381),
+            array('127.0.0.1', 7380),
         ),
         'after' => array(
             

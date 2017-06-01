@@ -8,12 +8,14 @@ class Exchanger
     public $connections = array();
     public $register = array();
     
+    public $logger = null;
     public $app = null;
     public $name = null;
     
     public function __construct($app, $name)
     {
         $this->app = $app;
+        $this->logger = $app->logger;
         $this->name = strtolower($name);
     }
     
@@ -35,8 +37,11 @@ class Exchanger
         if(empty($data)){
             return;
         }
-        $this->app->logger->log(__FUNCTION__.': '.json_encode($data));
+        $this->logger->log(__CLASS__.':'.__FUNCTION__.': '.json_encode($data));
         foreach($data as $param){
+            if(!is_array($param)){
+                $param = preg_split('#\s+#', (string)$param);
+            }
             $cmd = array_shift($param);
             $command = 'ex'.ucfirst($cmd);
             if(method_exists($this, $command)){
@@ -47,6 +52,7 @@ class Exchanger
     
     public function onConnect($conn)
     {
+        $this->logger->log(__CLASS__.':'.__FUNCTION__);
         if(!isset($this->connections[$conn->id])){
             $this->connections[$conn->id] = $conn;
         }
@@ -107,13 +113,16 @@ class Exchanger
      */
     public function exInfo($conn)
     {
+        $coordinator = $this->app->getInstance('coordinator');
         $info = array(
             'connections: '.count($this->connections),
             'keys: '.json_encode(array_keys($this->keys)),
-            'keys_detail: '.array_map('array_sum', $this->keys),
+            'keys_detail: '.json_encode(array_map('array_sum', $this->keys)),
             'registered: '.json_encode(array_values($this->register)),
             'mediator:' . $this->app->getConfig('mediator', 'host').':'.$this->app->getConfig('mediator', 'port'),
             'exchanger:' . $this->app->getConfig('exchanger', 'host').':'.$this->app->getConfig('exchanger', 'port'),
+            'coordinator_keys: '. json_encode($coordinator->keys),
+            '',
         );
         $conn->reply($info);
     }

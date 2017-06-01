@@ -35,19 +35,21 @@ class Waitor
      */
     public function onConnect()
     {
-        $this->logger->log(__FUNCTION__);
-        $this->client->push('register', 'client', 1);
+        $this->logger->log(__CLASS__.':'.__FUNCTION__);
     }
     /**
      * 收到服务器的消息时触发
      */
     public function onMessage($data)
     {
-        $this->logger->log(__FUNCTION__.': '.json_encode($data));
+        $this->logger->log(__CLASS__.':'.__FUNCTION__.': '.json_encode($data));
         if(empty($data)){
             return;
         }
         foreach($data as $param){
+            if(!is_array($param)){
+                $param = preg_split('#\s+#', (string)$param);
+            }
             $cmd = array_shift($param);
             $command = 'on'.ucfirst($cmd);
             if(method_exists($this, $command)){
@@ -62,6 +64,7 @@ class Waitor
      */
     public function onAcceptor($op, ...$data)
     {
+        $this->logger->log(__CLASS__.':'.__FUNCTION__. ','.$op.','. json_encode($data));
         $this->client->push($op, ...$data);
     }
     /**

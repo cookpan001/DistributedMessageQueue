@@ -15,9 +15,9 @@ class Initializer
     
     public function __construct()
     {
-        $this->logger = new cookpan001\Listener\Logger();
-        $this->storage = new cookpan001\Listener\Storage();
-        $this->emiter = new cookpan001\Listener\Emiter();
+        $this->logger = new Logger();
+        $this->storage = new Storage();
+        $this->emiter = new Emiter();
     }
     
     public function __destruct()
@@ -40,11 +40,11 @@ class Initializer
     
     public function createServer($conf)
     {
-        $server = new \cookpan001\Listener\Listener($conf['host'], $conf['port'], $this->getCodec($conf['codec']), $this->logger);
+        $server = new Listener($conf['host'], $conf['port'], $this->getCodec($conf['codec']), $this->logger);
         $server->create();
         $server->setId($conf['name']);
+        $obj = new $conf['class']($this, $conf['name']);
         if(isset($conf['on'])){
-            $obj = new $conf['class']($this, $conf['name']);
             foreach($conf['on'] as $condition => $callback){
                 if(is_callable($callback)){
                     $server->on($condition, $callback);
@@ -56,7 +56,7 @@ class Initializer
         }
         if(isset($conf['emit'])){
             foreach($conf['emit'] as $condition => $callback){
-                $this->emiter->on($condition, array($server, $callback));
+                $this->emiter->on($condition, array($obj, $callback));
             }
         }
         return $server;
@@ -68,18 +68,18 @@ class Initializer
             $instances = array();
             foreach($conf['instance'] as $line){
                 if(!isset($this->ignore[implode(':', $line)])){
-                    $instances[] = array($line);
+                    $instances[] = $line;
                 }
             }
-            $client = new \cookpan001\Listener\Agent($instances);
+            $client = new Agent($instances);
         }else{
-            $client = new \cookpan001\Listener\Client($conf['host'], $conf['port']);
+            $client = new Client($conf['host'], $conf['port']);
         }
         $client->setCodec($this->getCodec($conf['codec']));
         $client->setLogger($this->logger);
         $client->setId($conf['name']);
+        $obj = new $conf['class']($this, $conf['name'], $client);
         if(isset($conf['on'])){
-            $obj = new $conf['class']($this, $conf['name'], $client);
             foreach($conf['on'] as $condition => $callback){
                 if(is_callable($callback)){
                     $client->on($condition, $callback);
@@ -91,7 +91,7 @@ class Initializer
         }
         if(isset($conf['emit'])){
             foreach($conf['emit'] as $condition => $callback){
-                $this->emiter->on($condition, array($client, $callback));
+                $this->emiter->on($condition, array($obj, $callback));
             }
         }
         return $client;
@@ -111,19 +111,19 @@ class Initializer
                 $app = $this->createClient($conf);
                 $this->listener[$app->id] = $app;
             }
-            if(isset($config['after'])){
-                foreach($config['after'] as $funcName){
-                    $after[] = array($this->listener[$app->id], $funcName);
-                }
-            }
+//            if(isset($config['after'])){
+//                foreach($config['after'] as $funcName){
+//                    $after[] = array($this->listener[$app->id], $funcName);
+//                }
+//            }
             $this->config[strtolower($conf['name'])] = $conf;
         }
-        foreach($after as $func){
-            list($obj, $name) = $func;
-            if(method_exists($obj, $name)){
-                call_user_func($func);
-            }
-        }
+//        foreach($after as $func){
+//            list($obj, $name) = $func;
+//            if(method_exists($obj, $name)){
+//                call_user_func($func);
+//            }
+//        }
         foreach($this->listener as $app){
             $app->start();
         }
@@ -142,13 +142,13 @@ class Initializer
     {
         $name = strtolower($name0);
         if($field){
-            if(isset($this->handler[$name][$field])){
-                return $this->handler[$name][$field];
+            if(isset($this->config[$name][$field])){
+                return $this->config[$name][$field];
             }
             return null;
         }
-        if(isset($this->handler[$name])){
-            return $this->handler[$name];
+        if(isset($this->config[$name])){
+            return $this->config[$name];
         }
         return null;
     }

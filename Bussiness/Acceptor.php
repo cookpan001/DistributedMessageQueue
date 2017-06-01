@@ -41,10 +41,13 @@ class Acceptor
         }
         $conn->on('close', function($id) use ($conn){
             unset($this->register[$id]);
-            foreach($conn->keys as $key){
+            $keys = $conn->keys();
+            foreach($keys as $key){
                 unset($this->subscriber[$key][$id]);
             }
-            $this->emiter->emit('notify', 'unsubscribe', ...$conn->keys);
+            if($keys){
+                $this->emiter->emit('acceptor', 'unsubscribe', ...$keys);
+            }
         });
     }
     
@@ -56,8 +59,11 @@ class Acceptor
         if(empty($data)){
             return;
         }
-        $this->logger->log(__FUNCTION__.': '.json_encode($data));
+        $this->logger->log(__CLASS__.':'.__FUNCTION__.': '.json_encode($data));
         foreach($data as $param){
+            if(!is_array($param)){
+                $param = preg_split('#\s+#', (string)$param);
+            }
             $cmd = array_shift($param);
             if(method_exists($this, $cmd)){
                 call_user_func(array($this, $cmd), $conn, ...$param);
@@ -72,7 +78,7 @@ class Acceptor
         if(empty($data)){
             return;
         }
-        $this->logger->log(__FUNCTION__.': '.json_encode($data));
+        $this->logger->log(__CLASS__.':'.__FUNCTION__.': '.json_encode($data));
         switch ($op) {
             case 'push':
                 $key = array_shift($data);
@@ -133,14 +139,22 @@ class Acceptor
         if(!isset($this->subscriber[$key][$conn->id])){
             $this->subscriber[$key][$conn->id] = 1;
         }
+        $this->emiter->emit('acceptor', 'subscribe', $key);
+        if(method_exists($conn, 'subscribe')){
+            $conn->subscribe($key);
+        }else{
+            var_dump($conn);
+        }
+        $this->logger->log(__CLASS__.':'.__FUNCTION__);
         //有没有暂存的消息
         if(!$this->storage->num($key)){
             return;
         }
         //发送暂存的消息
         $values = $this->storage->getAndRemove($key);
-        $conn->reply(...$values);
-        $this->emiter->emit('acceptor', 'subscribe', ...$values);
+        if($values){
+            $conn->reply(...$values);
+        }
     }
     /**
      * 移除消息
@@ -155,5 +169,19 @@ class Acceptor
     public function timestamp($conn, $key, $value)
     {
         return $this->storage->timestamp($key, $value);
+    }
+    
+    public function info($conn)
+    {
+        $info = array(
+            'subscribers: '. count($this->subscriber),
+            'connections: '. count($this->register),
+            'keys: '.json_encode(array_keys($this->subscriber)),
+            'timers: '.json_encode(array_keys($this->timer)),
+            'acceptor: '.$this->app->getConfig('acceptor', 'host').':'.$this->app->getConfig('acceptor', 'port'),
+            'waitor: '.$this->app->getConfig('waitor', 'host').':'.$this->app->getConfig('waitor', 'port'),
+            '',
+        );
+        $conn->reply($info);
     }
 }

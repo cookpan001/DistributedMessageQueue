@@ -23,7 +23,9 @@ class Connection
     public function __destruct()
     {
         $this->close();
-        var_export("__destruct connection\n");
+        list($m1, ) = explode(' ', microtime());
+        $date = date('Y-m-d H:i:s') . substr($m1, 1);
+        echo "$date\tdestruct connection\n";
     }
     
     public function __call($name, $arguments)

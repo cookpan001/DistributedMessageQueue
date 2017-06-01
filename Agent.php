@@ -192,7 +192,7 @@ class Agent
             }
             $this->watcher[$from] = new \EvIo($socket, \Ev::WRITE, function ($w)use ($that, $socket, $from){
                 $w->stop();
-                $that->emit('connect');
+                $that->emit('connect', $from);
                 $that->watcher[$from] = new \EvIo($socket, \Ev::READ, function() use ($that, $from){
                     $that->handle($from);
                 });
@@ -202,8 +202,10 @@ class Agent
     
     public function start()
     {
-        $this->periodTimer = new \EvPeriodic(0, 30, null, function(){
+        $this->periodTimer = new \EvPeriodic(0, 5, null, function(){
+            //$this->logger->log('connect periodic');
             $this->connect();
+            $this->process();
         });
         $this->connect();
         $this->process();

@@ -42,8 +42,11 @@ class Mediator
         if(empty($data)){
             return;
         }
-        $this->logger->log(__FUNCTION__.': '.json_encode($data));
+        $this->logger->log(__CLASS__.':'.__FUNCTION__.':: '.json_encode($data));
         foreach($data as $param){
+            if(!is_array($param)){
+                $param = preg_split('#\s+#', (string)$param);
+            }
             $cmd = array_shift($param);
             $command = 'ex'.ucfirst($cmd);
             if(method_exists($this, $command)){
@@ -125,8 +128,9 @@ class Mediator
             }
             $update[$key] = count($this->keys[$key]);
         }
+        $this->logger->log(__CLASS__.'::'.__FUNCTION__.', '. json_encode($update));
         if($update){
-            $coordinator = $this->app->getInstance('coordiantor');
+            $coordinator = $this->app->getInstance('coordinator');
             if($coordinator){
                 $coordinator->notify(array_keys($update), array_values($update));
             }
@@ -146,8 +150,9 @@ class Mediator
             }
             $update[$key] = count($this->keys[$key]);
         }
+        $this->logger->log(__CLASS__.'::'.__FUNCTION__.', '. json_encode($update));
         if($update){
-            $coordinator = $this->app->getInstance('coordiantor');
+            $coordinator = $this->app->getInstance('coordinator');
             if($coordinator){
                 $coordinator->notify(array_keys($update), array_values($update));
             }
