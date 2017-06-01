@@ -83,24 +83,22 @@ class Mediator
     public function exSend($conn, $key, $value)
     {
         $conn->reply('mediator', 'ack', $key, $value);
-        if(empty($this->keys[$key])){
-            $this->storage->set($key, $value, $value);
-            return false;
-        }
-        foreach($this->keys[$key] as $id => $num){
-            if($id == $conn->id){
-                continue;
+        if(isset($this->keys[$key])){
+            foreach($this->keys[$key] as $id => $num){
+                if($id == $conn->id){
+                    continue;
+                }
+                if($num <= 0){
+                    unset($this->keys[$key][$id]);
+                    continue;
+                }
+                if(!isset($this->connections[$id])){
+                    unset($this->keys[$key][$id]);
+                    continue;
+                }
+                $this->connections[$id]->reply('mediator', 'push', $key, $value);
+                return true;
             }
-            if($num <= 0){
-                unset($this->keys[$key][$id]);
-                continue;
-            }
-            if(!isset($this->connections[$id])){
-                unset($this->keys[$key][$id]);
-                continue;
-            }
-            $this->connections[$id]->reply('mediator', 'push', $key, $value);
-            return true;
         }
         $this->storage->set($key, $value, $value);
         $exchanger = $this->app->getInstance('exchanger');
@@ -108,6 +106,7 @@ class Mediator
             $ret = $exchanger->push($key, $value);
             if($ret){
                 $this->storage->remove($key, $value);
+                return true;
             }
         }
         return false;

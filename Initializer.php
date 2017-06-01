@@ -59,6 +59,7 @@ class Initializer
                 $this->emiter->on($condition, array($obj, $callback));
             }
         }
+        $server->setHandler($obj);
         return $server;
     }
     
@@ -94,6 +95,7 @@ class Initializer
                 $this->emiter->on($condition, array($obj, $callback));
             }
         }
+        $client->setHandler($obj);
         return $client;
     }
     /**
@@ -111,21 +113,21 @@ class Initializer
                 $app = $this->createClient($conf);
                 $this->listener[$app->id] = $app;
             }
-//            if(isset($config['after'])){
-//                foreach($config['after'] as $funcName){
-//                    $after[] = array($this->listener[$app->id], $funcName);
-//                }
-//            }
+            if(isset($config['after'])){
+                foreach($config['after'] as $funcName){
+                    $after[] = array($app->handler, $funcName);
+                }
+            }
             $this->config[strtolower($conf['name'])] = $conf;
         }
-//        foreach($after as $func){
-//            list($obj, $name) = $func;
-//            if(method_exists($obj, $name)){
-//                call_user_func($func);
-//            }
-//        }
         foreach($this->listener as $app){
             $app->start();
+        }
+        foreach($after as $func){
+            list($obj, $name) = $func;
+            if(method_exists($obj, $name)){
+                call_user_func($func);
+            }
         }
     }
     

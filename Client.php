@@ -14,6 +14,7 @@ class Client
     public $logger = null;
     public $callback = array();
     public $id = 0;
+    public $handler = 0;
     
     public function __construct($host = '127.0.0.1', $port = 6379)
     {
@@ -39,6 +40,11 @@ class Client
     public function setId($id)
     {
         $this->id = $id;
+    }
+    
+    public function setHandler($obj)
+    {
+        $this->handler = $obj;
     }
     
     public function connect()

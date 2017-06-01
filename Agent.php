@@ -15,6 +15,7 @@ class Agent
     public $id = 0;
     public $instances = array();
     public $connected = array();
+    public $handler = null;
     
     public function __construct($config)
     {
@@ -42,6 +43,11 @@ class Agent
     public function setId($id)
     {
         $this->id = $id;
+    }
+    
+    public function setHandler($obj)
+    {
+        $this->handler = $obj;
     }
     
     public function connect()

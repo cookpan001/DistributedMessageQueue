@@ -16,6 +16,7 @@ class Listener
     public $logger = null;
     public $socketLoop = null;
     public $id = 0;
+    public $handler = null;
 
     public function __construct($host, $port, $codec, $logger = null)
     {
@@ -56,6 +57,11 @@ class Listener
     public function setCodec($codec)
     {
         $this->codec = $codec;
+    }
+    
+    public function setHandler($obj)
+    {
+        $this->handler = $obj;
     }
     
     public function on($condition, callable $func)

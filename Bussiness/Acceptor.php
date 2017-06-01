@@ -95,10 +95,7 @@ class Acceptor
      */
     public function send($key, $value, $broadcast = true)
     {
-        if(empty($this->subscriber[$key])){
-            return false;
-        }
-        while(count($this->subscriber[$key])){
+        while(isset($this->subscriber[$key]) && count($this->subscriber[$key])){
             $connId = array_rand($this->subscriber[$key]);
             if(!isset($this->register[$connId])){
                 unset($this->subscriber[$key][$connId]);
