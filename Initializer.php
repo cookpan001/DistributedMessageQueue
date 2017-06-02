@@ -43,23 +43,21 @@ class Initializer
         $server = new Listener($conf['host'], $conf['port'], $this->getCodec($conf['codec']), $this->logger);
         $server->create();
         $server->setId($conf['name']);
-        $obj = new $conf['class']($this, $conf['name']);
-        if(isset($conf['on'])){
-            foreach($conf['on'] as $condition => $callback){
-                if(is_callable($callback)){
-                    $server->on($condition, $callback);
-                }else{
-                    $server->on($condition, array($obj, $callback));
-                }
-            }
-            $this->handler[strtolower($conf['name'])] = $obj;
-        }
-        if(isset($conf['emit'])){
+        if(isset($conf['class']) && class_exists($conf['class'])){
+            $obj = new $conf['class']($this, $conf['name']);
             foreach($conf['emit'] as $condition => $callback){
                 $this->emiter->on($condition, array($obj, $callback));
             }
+            $this->handler[strtolower($conf['name'])] = $obj;
+            $server->setHandler($obj);
         }
-        $server->setHandler($obj);
+        foreach($conf['on'] as $condition => $callback){
+            if(is_callable($callback)){
+                $server->on($condition, $callback);
+            }else if(isset($obj)){
+                $server->on($condition, array($obj, $callback));
+            }
+        }
         return $server;
     }
     
@@ -79,23 +77,21 @@ class Initializer
         $client->setCodec($this->getCodec($conf['codec']));
         $client->setLogger($this->logger);
         $client->setId($conf['name']);
-        $obj = new $conf['class']($this, $conf['name'], $client);
-        if(isset($conf['on'])){
-            foreach($conf['on'] as $condition => $callback){
-                if(is_callable($callback)){
-                    $client->on($condition, $callback);
-                }else{
-                    $client->on($condition, array($obj, $callback));
-                }
-            }
-            $this->handler[strtolower($conf['name'])] = $obj;
-        }
-        if(isset($conf['emit'])){
+        if(isset($conf['class']) && class_exists($conf['class'])){
+            $obj = new $conf['class']($this, $conf['name'], $client);
             foreach($conf['emit'] as $condition => $callback){
                 $this->emiter->on($condition, array($obj, $callback));
             }
+            $this->handler[strtolower($conf['name'])] = $obj;
+            $client->setHandler($obj);
         }
-        $client->setHandler($obj);
+        foreach($conf['on'] as $condition => $callback){
+            if(is_callable($callback)){
+                $client->on($condition, $callback);
+            }else if(isset($obj)){
+                $client->on($condition, array($obj, $callback));
+            }
+        }
         return $client;
     }
     /**
@@ -113,9 +109,13 @@ class Initializer
                 $app = $this->createClient($conf);
                 $this->listener[$app->id] = $app;
             }
-            if(isset($config['after'])){
-                foreach($config['after'] as $funcName){
-                    $after[] = array($app->handler, $funcName);
+            if(isset($conf['after'])){
+                foreach($conf['after'] as $funcName){
+                    if(is_callable($funcName)){
+                        $after[$app->id] = $funcName;
+                    }else{
+                        $after[$app->id] = array($app->handler, $funcName);
+                    }
                 }
             }
             $this->config[strtolower($conf['name'])] = $conf;
@@ -123,10 +123,9 @@ class Initializer
         foreach($this->listener as $app){
             $app->start();
         }
-        foreach($after as $func){
-            list($obj, $name) = $func;
-            if(method_exists($obj, $name)){
-                call_user_func($func);
+        foreach($after as $appId => $func){
+            if(is_callable($func)){
+                call_user_func($func, $this->listener[$appId], $this->config[$appId]);
             }
         }
     }

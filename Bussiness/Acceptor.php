@@ -82,9 +82,7 @@ class Acceptor
         switch ($op) {
             case 'push':
                 $key = array_shift($data);
-                foreach($data as $value){
-                    $this->send($key, $value, false);
-                }
+                $this->send($key, $data, false);
                 break;
             default:
                 break;
@@ -102,7 +100,11 @@ class Acceptor
                 continue;
             }
             $this->storage->remove($key, $value);
-            $this->register[$connId]->reply($value);
+            if(is_array($value)){
+                $this->register[$connId]->reply(...$value);
+            }else{
+                $this->register[$connId]->reply($value);
+            }
             return true;
         }
         if($broadcast){
@@ -114,17 +116,25 @@ class Acceptor
     /**
      * 收到消息, 推送或定时推送
      */
-    public function publish($conn, $key, $value, $timestamp = 0)
+    public function publish($conn, $key, ...$data)
     {
-        if(0 == $timestamp || ($diff = ($timestamp - time())) <= 0){
-            if($this->storage->has($key, $value)){
-                $this->storage->remove($key, $value);
+        $toSend = array();
+        while(count($data)){
+            $value = array_shift($data);
+            $timestamp = array_shift($data);
+            if(0 == $timestamp || ($diff = ($timestamp - time())) <= 0){
+                if($this->storage->has($key, $value)){
+                    $this->storage->remove($key, $value);
+                }
+                $toSend[] = $value;
+            }else{
+                //定时的消息
+                $this->storage->set($key, $value, $this, $diff);
             }
+        }
+        if($toSend){
             //立即发送的消息
-            $this->send($key, $value);
-        }else{
-            //定时的消息
-            $this->storage->set($key, $value, $value, $this, $diff);
+            $this->send($key, $toSend);
         }
     }
     /**
@@ -140,7 +150,7 @@ class Acceptor
         if(method_exists($conn, 'subscribe')){
             $conn->subscribe($key);
         }else{
-            var_dump($conn);
+            
         }
         $this->logger->log(__CLASS__.':'.__FUNCTION__);
         //有没有暂存的消息

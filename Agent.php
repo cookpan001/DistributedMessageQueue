@@ -61,7 +61,7 @@ class Agent
             if ($socket === FALSE) {
                 continue;
             }
-            if(!socket_connect($socket, $host, $port)){
+            if(!@\socket_connect($socket, $host, $port)){
                 continue;
             }
             $this->log("connected to {$host}:{$port}");

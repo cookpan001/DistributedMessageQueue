@@ -4,7 +4,7 @@ include __DIR__ . DIRECTORY_SEPARATOR . 'base.php';
 include __DIR__ . DIRECTORY_SEPARATOR . 'autoload.php';
 $config = array(
     array(
-        'codec' => 'cookpan001\Listener\Codec\Redis',
+        'codec' => 'cookpan001\Listener\Codec\Deflate',
         'class' => 'cookpan001\Listener\Bussiness\Mediator',
         'role' => 'server',
         'name' => 'mediator',
@@ -21,7 +21,7 @@ $config = array(
             
         ),
     ),array(
-        'codec' => 'cookpan001\Listener\Codec\Redis',
+        'codec' => 'cookpan001\Listener\Codec\Deflate',
         'class' => 'cookpan001\Listener\Bussiness\Exchanger',
         'role' => 'server',
         'name' => 'exchanger',
@@ -39,7 +39,7 @@ $config = array(
         ),
     ),
     array(
-        'codec' => 'cookpan001\Listener\Codec\Redis',
+        'codec' => 'cookpan001\Listener\Codec\Deflate',
         'class' => 'cookpan001\Listener\Bussiness\Coordinator',
         'name' => 'coordinator',
         'role' => 'agent',

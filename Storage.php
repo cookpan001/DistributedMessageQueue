@@ -13,21 +13,24 @@ class Storage
         
     }
     
-    public function set($key, $field, $value, $that = null, $diff = 0)
+    public function set($key, $values, $that = null, $diff = 0)
     {
-        if(!$this->has($key, $field)){
-            $this->keys[$key][$field] = $value;
-        }
-        if($diff > 0){
-            if($this->timer[$key][$value]){
-                $this->timer[$key][$value]->stop();
+        foreach((array)$values as $value){
+            $field = $value;
+            if(!$this->has($key, $field)){
+                $this->keys[$key][$field] = $value;
             }
-            if($that){
-                $this->timer[$key][$value] = new \EvTimer(0, $diff, function ($w) use ($that, $key, $value){
-                    $w->stop();
-                    unset($this->timer[$key][$value]);
-                    $that->send($key, $value);
-                });
+            if($diff > 0){
+                if($this->timer[$key][$value]){
+                    $this->timer[$key][$value]->stop();
+                }
+                if($that){
+                    $this->timer[$key][$value] = new \EvTimer(0, $diff, function ($w) use ($that, $key, $value){
+                        $w->stop();
+                        unset($this->timer[$key][$value]);
+                        $that->send($key, $value);
+                    });
+                }
             }
         }
     }
@@ -49,10 +52,12 @@ class Storage
     
     public function remove($key, $field)
     {
-        unset($this->keys[$key][$field]);
-        if(isset($this->timer[$key][$field])){
-            $this->timer[$key][$field]->stop();
-            unset($this->timer[$key][$field]);
+        foreach((array)$field as $f){
+            unset($this->keys[$key][$f]);
+            if(isset($this->timer[$key][$f])){
+                $this->timer[$key][$f]->stop();
+                unset($this->timer[$key][$f]);
+            }
         }
     }
     

@@ -138,7 +138,9 @@ class Listener
                 $that->logger->log('----------------'.__CLASS__.' BEGIN----------------');
                 if($that->codec && $str != "\r" && $str != "\n" && $str != "\r\n"){
                     $commands = $that->codec->unserialize($str);
+                    $that->logger->log('***************'.__CLASS__.' PARSED***************');
                     $ret = $that->emit('message', $conn, $commands);
+                     $that->logger->log('***************'.__CLASS__.' HANDLED***************');
                     if(false === $ret){
                         $that->logger->log($commands);
                         $that->reply($conn, 1);

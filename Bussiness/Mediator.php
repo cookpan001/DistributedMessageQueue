@@ -100,7 +100,7 @@ class Mediator
                 return true;
             }
         }
-        $this->storage->set($key, $value, $value);
+        $this->storage->set($key, $value);
         $exchanger = $this->app->getInstance('exchanger');
         if($exchanger){
             $ret = $exchanger->push($key, $value);
@@ -161,7 +161,7 @@ class Mediator
     public function push($key, $value)
     {
         if(empty($this->keys[$key])){
-            $this->storage->set($key, $value, $value);
+            $this->storage->set($key, $value);
             return false;
         }
         foreach($this->keys[$key] as $id => $num){
