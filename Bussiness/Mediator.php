@@ -42,7 +42,7 @@ class Mediator
         if(empty($data)){
             return;
         }
-        $this->logger->log(__CLASS__.':'.__FUNCTION__.':: '.json_encode($data));
+        $this->logger->log(__CLASS__.':'.__FUNCTION__.':: '.__LINE__);
         foreach($data as $param){
             if(!is_array($param)){
                 $param = preg_split('#\s+#', (string)$param);
@@ -82,7 +82,6 @@ class Mediator
     
     public function exSend($conn, $key, $value)
     {
-        $conn->reply('mediator', 'ack', $key, $value);
         if(isset($this->keys[$key])){
             foreach($this->keys[$key] as $id => $num){
                 if($id == $conn->id){
@@ -97,17 +96,17 @@ class Mediator
                     continue;
                 }
                 $this->connections[$id]->reply('mediator', 'push', $key, $value);
+                $conn->reply('mediator', 'ack', $key, $value);
                 return true;
             }
         }
-        $this->storage->set($key, $value);
         $exchanger = $this->app->getInstance('exchanger');
         if($exchanger){
             $ret = $exchanger->push($key, $value);
-            if($ret){
-                $this->storage->remove($key, $value);
-                return true;
+            if(!$ret){
+                $this->storage->set($key, $value);
             }
+            return true;
         }
         return false;
     }

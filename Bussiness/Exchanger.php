@@ -37,7 +37,7 @@ class Exchanger
         if(empty($data)){
             return;
         }
-        $this->logger->log(__CLASS__.':'.__FUNCTION__.': '.json_encode($data));
+        $this->logger->log(__CLASS__.':'.__FUNCTION__.': '.__LINE__);
         foreach($data as $param){
             if(!is_array($param)){
                 $param = preg_split('#\s+#', (string)$param);

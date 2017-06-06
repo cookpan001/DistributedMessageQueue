@@ -8,7 +8,7 @@ $config = array(
         'name' => 'waitor',
         'role' => 'client',
         'host' => '127.0.0.1',
-        'port' => 6381,
+        'port' => 6380,
         'on' => array(
             
         ),

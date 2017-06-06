@@ -59,14 +59,17 @@ class Acceptor
         if(empty($data)){
             return;
         }
-        $this->logger->log(__CLASS__.':'.__FUNCTION__.': '.json_encode($data));
+        $this->logger->log(__CLASS__.':'.__FUNCTION__.': '.__LINE__);
         foreach($data as $param){
             if(!is_array($param)){
                 $param = preg_split('#\s+#', (string)$param);
             }
             $cmd = array_shift($param);
+            $this->logger->log('++++++++++++++++++++++++++'.__CLASS__.'::'.__FUNCTION__.':'.__LINE__);
             if(method_exists($this, $cmd)){
+                $this->logger->log('++++++++++++++++++++++++++'.__CLASS__.'::'.__FUNCTION__.':'.__LINE__);
                 call_user_func(array($this, $cmd), $conn, ...$param);
+                $this->logger->log('++++++++++++++++++++++++++'.__CLASS__.'::'.__FUNCTION__.':'.__LINE__);
             }
         }
     }
@@ -78,7 +81,7 @@ class Acceptor
         if(empty($data)){
             return;
         }
-        $this->logger->log(__CLASS__.':'.__FUNCTION__.': '.json_encode($data));
+        $this->logger->log(__CLASS__.':'.__FUNCTION__.': '.__LINE__);
         switch ($op) {
             case 'push':
                 $key = array_shift($data);
@@ -99,12 +102,12 @@ class Acceptor
                 unset($this->subscriber[$key][$connId]);
                 continue;
             }
-            $this->storage->remove($key, $value);
             if(is_array($value)){
                 $this->register[$connId]->reply(...$value);
             }else{
                 $this->register[$connId]->reply($value);
             }
+            $this->storage->remove($key, $value);
             return true;
         }
         if($broadcast){
@@ -119,22 +122,28 @@ class Acceptor
     public function publish($conn, $key, ...$data)
     {
         $toSend = array();
-        while(count($data)){
-            $value = array_shift($data);
-            $timestamp = array_shift($data);
-            if(0 == $timestamp || ($diff = ($timestamp - time())) <= 0){
-                if($this->storage->has($key, $value)){
-                    $this->storage->remove($key, $value);
-                }
-                $toSend[] = $value;
+        $toSet = array();
+        $now = time();
+        $count = count($data);
+        $this->logger->log('++++++++++++++++++++++++++'.__CLASS__.'::'.__FUNCTION__);
+        for($i = 0; $i < $count; ++$i){
+            $value = $data[$i];
+            $timestamp = $data[$i + 1];
+            if(0 == $timestamp || ($diff = ($timestamp - $now)) <= 0){
+                $toSend[$value] = $value;
             }else{
                 //定时的消息
-                $this->storage->set($key, $value, $this, $diff);
+                $toSet[$value] = $diff;
             }
+            ++$i;
         }
+        $this->logger->log('++++++++++++++++++++++++++'.__CLASS__.'::'.__FUNCTION__);
         if($toSend){
             //立即发送的消息
             $this->send($key, $toSend);
+        }
+        if($toSet){
+            $this->storage->setTimer($key, $toSet, $this, $diff);
         }
     }
     /**

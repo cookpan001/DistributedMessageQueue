@@ -42,7 +42,7 @@ class Waitor
      */
     public function onMessage($data)
     {
-        $this->logger->log(__CLASS__.':'.__FUNCTION__.': '.json_encode($data));
+        $this->logger->log(__CLASS__.':'.__FUNCTION__.': '.__LINE__);
         if(empty($data)){
             return;
         }
@@ -64,7 +64,7 @@ class Waitor
      */
     public function onAcceptor($op, ...$data)
     {
-        $this->logger->log(__CLASS__.':'.__FUNCTION__. ','.$op.','. json_encode($data));
+        $this->logger->log(__CLASS__.':'.__FUNCTION__. ','.$op.','. __LINE__);
         $this->client->push($op, ...$data);
     }
     /**

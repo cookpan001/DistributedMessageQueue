@@ -57,7 +57,7 @@ function testRaw2()
 {
     global $app;
     $input = 'a';
-    $str = "a\r\n";
+    $str = "a b\r\n";
     echo __FUNCTION__ . ", input: $input, output: " . json_encode($app->unserialize($str)) . "\n";
 }
 
@@ -76,11 +76,12 @@ function testPacket()
     echo __FUNCTION__ . ", output: " . json_encode($app->unserialize($str)) . "\n";
 }
 
-testPacket();
-testInt();
-testBulk();
-testString();
-testError();
-testNull();
-testArray();
+//testPacket();
+//testInt();
+//testBulk();
+//testString();
+//testError();
+//testNull();
+//testArray();
+//testRaw();
 testRaw2();

@@ -51,7 +51,7 @@ class Coordinator
      */
     public function onMessage($from, $data)
     {
-        $this->logger->log(__CLASS__.':'.__FUNCTION__.': '.json_encode($data));
+        $this->logger->log(__CLASS__.':'.__FUNCTION__.': '.__LINE__);
         if(empty($data)){
             return;
         }
