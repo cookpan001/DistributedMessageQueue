@@ -4,7 +4,7 @@ include __DIR__ . DIRECTORY_SEPARATOR . 'base.php';
 include __DIR__ . DIRECTORY_SEPARATOR . 'autoload.php';
 $config = array(
     array(
-        'codec' => 'cookpan001\Listener\Codec\Deflate',
+        'codec' => 'cookpan001\Listener\Codec\MessagePack',
         'name' => 'waitor',
         'role' => 'client',
         'host' => '127.0.0.1',
@@ -13,7 +13,7 @@ $config = array(
             'message' => function($data){
                 list($m1, ) = explode(' ', microtime());
                 $date = date('Y-m-d H:i:s') . substr($m1, 1);
-                echo $date. "\t" . json_encode($data)."\n";
+                echo $date. "\treceived\n";
             },
         ),
         'emit' => array(

@@ -4,7 +4,7 @@ include __DIR__ . DIRECTORY_SEPARATOR . 'base.php';
 include __DIR__ . DIRECTORY_SEPARATOR . 'autoload.php';
 $config = array(
     array(
-        'codec' => 'cookpan001\Listener\Codec\Deflate',
+        'codec' => 'cookpan001\Listener\Codec\MessagePack',
         'class' => 'cookpan001\Listener\Bussiness\Acceptor',
         'name' => 'acceptor',
         'role' => 'server',
@@ -22,7 +22,7 @@ $config = array(
         ),
     ),
     array(
-        'codec' => 'cookpan001\Listener\Codec\Deflate',
+        'codec' => 'cookpan001\Listener\Codec\MessagePack',
         'class' => 'cookpan001\Listener\Bussiness\Waitor',
         'name' => 'waitor',
         'role' => 'client',

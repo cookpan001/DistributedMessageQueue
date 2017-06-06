@@ -157,6 +157,7 @@ class Client
         if(false === $str){
             return false;
         }
+        $this->log('received message');
         if('' === $str){
             return true;
         }

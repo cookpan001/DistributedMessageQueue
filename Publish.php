@@ -4,11 +4,11 @@ include __DIR__ . DIRECTORY_SEPARATOR . 'base.php';
 include __DIR__ . DIRECTORY_SEPARATOR . 'autoload.php';
 $config = array(
     array(
-        'codec' => 'cookpan001\Listener\Codec\Deflate',
+        'codec' => 'cookpan001\Listener\Codec\MessagePack',
         'name' => 'waitor',
         'role' => 'client',
         'host' => '127.0.0.1',
-        'port' => 6380,
+        'port' => 6381,
         'on' => array(
             
         ),
@@ -17,7 +17,7 @@ $config = array(
         ),
         'after' => array(
             function($client){
-                $i = 1000;
+                $i = 100;
                 $data = array();
                 while($i > 0){
                     $data[] = $i;

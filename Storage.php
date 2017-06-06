@@ -17,9 +17,27 @@ class Storage
     {
         foreach((array)$values as $value){
             $field = $value;
-            if(!$this->has($key, $field)){
-                $this->keys[$key][$field] = $value;
+            $this->keys[$key][$field] = $value;
+            if($diff > 0){
+                if($this->timer[$key][$value]){
+                    $this->timer[$key][$value]->stop();
+                }
+                if($that){
+                    $this->timer[$key][$value] = new \EvTimer(0, $diff, function ($w) use ($that, $key, $value){
+                        $w->stop();
+                        unset($this->timer[$key][$value]);
+                        $that->send($key, $value);
+                    });
+                }
             }
+        }
+    }
+    
+    public function setTimer($key, $values, $that = null)
+    {
+        foreach((array)$values as $value => $diff){
+            $field = $value;
+            $this->keys[$key][$field] = $value;
             if($diff > 0){
                 if($this->timer[$key][$value]){
                     $this->timer[$key][$value]->stop();
@@ -52,6 +70,14 @@ class Storage
     
     public function remove($key, $field)
     {
+        if(!is_array($field)){
+            unset($this->keys[$key][$field]);
+            if(isset($this->timer[$key][$field])){
+                $this->timer[$key][$field]->stop();
+                unset($this->timer[$key][$field]);
+            }
+            return true;
+        }
         foreach((array)$field as $f){
             unset($this->keys[$key][$f]);
             if(isset($this->timer[$key][$f])){

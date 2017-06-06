@@ -140,7 +140,7 @@ class Listener
                     $commands = $that->codec->unserialize($str);
                     $that->logger->log('***************'.__CLASS__.' PARSED***************');
                     $ret = $that->emit('message', $conn, $commands);
-                     $that->logger->log('***************'.__CLASS__.' HANDLED***************');
+                    $that->logger->log('***************'.__CLASS__.' HANDLED***************');
                     if(false === $ret){
                         $that->logger->log($commands);
                         $that->reply($conn, 1);
@@ -204,6 +204,7 @@ class Listener
                 $this->closed($conn);
                 return false;
             }
+            $this->logger->log('***************'.__CLASS__.' REPLY***************');
             $tmp = '';
             socket_recv($conn->clientSocket, $tmp, self::FRAME_SIZE, MSG_DONTWAIT);
             $errorCode = socket_last_error($conn->clientSocket);
