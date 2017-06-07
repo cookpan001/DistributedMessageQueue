@@ -80,6 +80,12 @@ class Waitor
                 list($key, $value) = $data;
                 $this->storage->remove($key, $value);
                 break;
+            case 'broadcast':
+                $acceptor = $this->getInstance('acceptor');
+                if($acceptor){
+                    $acceptor->receiveBroadcast($key, $value);
+                }
+                break;
             default:
                 break;
         }

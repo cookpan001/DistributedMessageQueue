@@ -86,6 +86,7 @@ class Coordinator
             return false;
         }
         $localExchanger = $this->app->getConfig('exchanger', 'host').':'.$this->app->getConfig('exchanger', 'port');
+        $mediator = $this->getInstance('mediator');
         foreach($this->keys[$key] as $from => $num){
             if($from == $localExchanger){
                 continue;
@@ -93,10 +94,30 @@ class Coordinator
             if($num <= 0){
                 continue;
             }
-            $mediator = $this->getInstance('mediator');
             if($mediator){
                 $mediator->push($key, $value);
                 return true;
+            }
+        }
+        return false;
+    }
+    
+    public function exBroadcast($from, $key, $values)
+    {
+        if(!isset($this->keys[$key])){
+            return false;
+        }
+        $localExchanger = $this->app->getConfig('exchanger', 'host').':'.$this->app->getConfig('exchanger', 'port');
+        $mediator = $this->getInstance('mediator');
+        foreach($this->keys[$key] as $from => $num){
+            if($from == $localExchanger){
+                continue;
+            }
+            if($num <= 0){
+                continue;
+            }
+            if($mediator){
+                $mediator->receiveBroadcast($key, $values);
             }
         }
         return false;

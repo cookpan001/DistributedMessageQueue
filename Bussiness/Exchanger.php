@@ -108,6 +108,20 @@ class Exchanger
             }
         }
     }
+    
+    public function broadcast($key, $values)
+    {
+        if(!isset($this->keys[$key])){
+            return false;
+        }
+        foreach($this->keys[$key] as $connId => $num){
+            if($num <= 0){
+                continue;
+            }
+            $conn = $this->connections[$connId];
+            $conn->reply('broadcast', $key, $values);
+        }
+    }
     /**
      * 查询服务状态
      */

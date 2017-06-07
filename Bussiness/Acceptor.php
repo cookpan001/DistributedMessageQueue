@@ -92,7 +92,7 @@ class Acceptor
         }
     }
     /**
-     * 推送消息
+     * 推送消息 
      */
     public function send($key, $value, $broadcast = true)
     {
@@ -144,6 +144,40 @@ class Acceptor
         }
         if($toSet){
             $this->storage->setTimer($key, $toSet, $this, $diff);
+        }
+    }
+    /**
+     * 广播消息
+     */
+    public function broadcast($conn, $key, ...$data)
+    {
+        $waitor = $this->getInstance('waitor');
+        if($waitor){
+            $waitor->onAcceptor('broadcast', $key, $data);
+        }
+        if(isset($this->subscriber[$key])){
+            foreach($this->subscriber[$key] as $connId => $__){
+                if(!isset($this->register[$connId])){
+                    unset($this->subscriber[$key][$connId]);
+                    continue;
+                }
+                $this->register[$connId]->reply(...$data);
+            }
+        }
+    }
+    /**
+     * 收到广播消息
+     */
+    public function receiveBroadcast($key, ...$data)
+    {
+        if(isset($this->subscriber[$key])){
+            foreach($this->subscriber[$key] as $connId => $__){
+                if(!isset($this->register[$connId])){
+                    unset($this->subscriber[$key][$connId]);
+                    continue;
+                }
+                $this->register[$connId]->reply(...$data);
+            }
         }
     }
     /**

@@ -111,6 +111,51 @@ class Mediator
         return false;
     }
     
+    public function exBroadcast($conn, $key, $value)
+    {
+        if(isset($this->keys[$key])){
+            foreach($this->keys[$key] as $id => $num){
+                if($id == $conn->id){
+                    continue;
+                }
+                if($num <= 0){
+                    unset($this->keys[$key][$id]);
+                    continue;
+                }
+                if(!isset($this->connections[$id])){
+                    unset($this->keys[$key][$id]);
+                    continue;
+                }
+                $this->connections[$id]->reply('mediator', 'broadcast', $key, $value);
+            }
+        }
+        $exchanger = $this->app->getInstance('exchanger');
+        if($exchanger){
+            $exchanger->broadcast($key, $value);
+        }
+    }
+    /**
+     * 收到Coordinator传来的广播消息
+     * @param type $key
+     * @param type $value
+     */
+    public function receiveBroadcast($key, $value)
+    {
+        if(isset($this->keys[$key])){
+            foreach($this->keys[$key] as $id => $num){
+                if($num <= 0){
+                    unset($this->keys[$key][$id]);
+                    continue;
+                }
+                if(!isset($this->connections[$id])){
+                    unset($this->keys[$key][$id]);
+                    continue;
+                }
+                $this->connections[$id]->reply('mediator', 'broadcast', $key, $value);
+            }
+        }
+    }
+    
     public function exSubscribe($conn, ...$para)
     {
         $update = array();
