@@ -11,19 +11,17 @@ $config = array(
         'port' => 6380,
         'on' => array(
             'message' => function($data){
-                list($m1, ) = explode(' ', microtime());
-                $date = date('Y-m-d H:i:s') . substr($m1, 1);
-                echo $date. "\treceived\n";
+//                list($m1, ) = explode(' ', microtime());
+//                $date = date('Y-m-d H:i:s') . substr($m1, 1);
+//                echo $date. "\treceived\n";
+            },
+            'connect' => function($client){
+                $client->push('subscribe', 'test');
             },
         ),
         'emit' => array(
             
         ),
-        'after' => [
-            function($client){
-                $client->push('subscribe', 'test');
-            },
-        ],
     ),
 );
 $app = new cookpan001\Listener\Initializer();

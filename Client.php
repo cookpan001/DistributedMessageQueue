@@ -56,7 +56,7 @@ class Client
                 sleep(1);
                 continue;
             }
-            if(!socket_connect($this->socket, $this->host, $this->port)){
+            if(!@socket_connect($this->socket, $this->host, $this->port)){
                 //echo "socket_connect() failed: reason: ".socket_strerror(socket_last_error()) . "\n";
                 sleep(1);
                 continue;
@@ -157,13 +157,14 @@ class Client
         if(false === $str){
             return false;
         }
-        $this->log('received message');
         if('' === $str){
             return true;
         }
         if($this->codec){
+            $m1 = microtime(true);
             $data = $this->codec->unserialize($str);
             $this->emit('message', $data);
+            $this->log('------'. (microtime(true) - $m1) * 1000000);
         }else{
             $this->log('no codec found');
         }
@@ -175,8 +176,9 @@ class Client
         $that = $this;
         $this->watcher = new \EvIo($this->socket, \Ev::WRITE, function ($w)use ($that){
             $w->stop();
-            $that->emit('connect');
+            $that->emit('connect', $that);
             $that->watcher = new \EvIo($that->socket, \Ev::READ, function() use ($that){
+                $that->log('processing....');
                 $that->handle();
             });
         });

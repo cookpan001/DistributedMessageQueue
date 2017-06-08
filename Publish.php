@@ -2,6 +2,13 @@
 
 include __DIR__ . DIRECTORY_SEPARATOR . 'base.php';
 include __DIR__ . DIRECTORY_SEPARATOR . 'autoload.php';
+
+function now()
+{
+    list($m1, ) = explode(' ', microtime());
+    return date('Y-m-d H:i:s') . substr($m1, 1);
+}
+
 $config = array(
     array(
         'codec' => 'cookpan001\Listener\Codec\MessagePack',
@@ -17,17 +24,20 @@ $config = array(
         ),
         'after' => array(
             function($client){
-                $i = 100;
-                $data = array();
+                $i = 1000;
+//                $data = array();
+//                while($i > 0){
+//                    $data[] = $i;
+//                    $data[] = 0;
+//                    $i--;
+//                }
+//                $client->push('publish', 'test', ...$data);
+                echo now(). "\tsending\n";
                 while($i > 0){
-                    $data[] = $i;
-                    $data[] = 0;
-                    $i--;
+                    $client->push('publish', 'test', $i, 0);
+                    --$i;
                 }
-                $client->push('publish', 'test', ...$data);
-                list($m1, ) = explode(' ', microtime());
-                $date = date('Y-m-d H:i:s') . substr($m1, 1);
-                echo $date. "\tmessage sent\n";
+                echo now(). "\tmessage sent\n";
             },
         ),
     ),

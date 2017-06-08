@@ -198,7 +198,7 @@ class Agent
             }
             $this->watcher[$from] = new \EvIo($socket, \Ev::WRITE, function ($w)use ($that, $socket, $from){
                 $w->stop();
-                $that->emit('connect', $from);
+                $that->emit('connect', $from, $that);
                 $that->watcher[$from] = new \EvIo($socket, \Ev::READ, function() use ($that, $from){
                     $that->handle($from);
                 });

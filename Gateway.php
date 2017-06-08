@@ -33,7 +33,7 @@ $config = array(
             'message' => 'onMessage',
         ),
         'emit' => array(
-            'acceptor' => 'onAcceptor',
+            //'acceptor' => 'onAcceptor',
         ),
         'after' => array(
             'onAfter',

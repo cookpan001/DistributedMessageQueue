@@ -42,6 +42,7 @@ class Listener
             $this->logger->log("Unable to create socket");
             exit(1);
         }
+        socket_set_option($socket, SOL_SOCKET, SO_REUSEADDR, 1);
         if(!socket_bind($socket, $this->host, $this->port)){
             $this->logger->log("Unable to bind socket port: ".$this->port);
             exit(1);

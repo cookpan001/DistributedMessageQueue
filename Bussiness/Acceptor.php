@@ -46,7 +46,10 @@ class Acceptor
                 unset($this->subscriber[$key][$id]);
             }
             if($keys){
-                $this->emiter->emit('acceptor', 'unsubscribe', ...$keys);
+                $waitor = $this->getInstance('waitor');
+                if($waitor){
+                    $waitor->toMediator('unsubscribe', ...$keys);
+                }
             }
         });
     }
@@ -60,16 +63,39 @@ class Acceptor
             return;
         }
         $this->logger->log(__CLASS__.':'.__FUNCTION__.': '.__LINE__);
+        $commands = array();
         foreach($data as $param){
             if(!is_array($param)){
                 $param = preg_split('#\s+#', (string)$param);
             }
             $cmd = array_shift($param);
-            $this->logger->log('++++++++++++++++++++++++++'.__CLASS__.'::'.__FUNCTION__.':'.__LINE__);
+            if(empty($param)){//无参数指令
+                if(!isset($commands[$cmd])){
+                    $commands[$cmd] = null;
+                }
+                continue;
+            }
+            $key = array_shift($param);
+            if(empty($param)){
+                $commands[$cmd][] = $key;
+                continue;
+            }
+            foreach($param as $val){
+                $commands[$cmd][$key][] = $val;
+            }
+        }
+        foreach($commands as $cmd => $arr){
             if(method_exists($this, $cmd)){
-                $this->logger->log('++++++++++++++++++++++++++'.__CLASS__.'::'.__FUNCTION__.':'.__LINE__);
-                call_user_func(array($this, $cmd), $conn, ...$param);
-                $this->logger->log('++++++++++++++++++++++++++'.__CLASS__.'::'.__FUNCTION__.':'.__LINE__);
+                if(is_null($arr)){
+                    $this->$cmd($conn);
+                    continue;
+                }else if(isset($arr[0])){
+                    $this->$cmd($conn, ...$arr);
+                    continue;
+                }
+                foreach($arr as $key => $param){
+                    $this->$cmd($conn, $key, ...$param);
+                }
             }
         }
     }
@@ -111,7 +137,10 @@ class Acceptor
             return true;
         }
         if($broadcast){
-            $this->emiter->emit('acceptor', 'send', $key, $value);
+            $waitor = $this->getInstance('waitor');
+            if($waitor){
+                $waitor->toMediator('send', $key, $value);
+            }
         }
         return false;
     }
@@ -153,7 +182,7 @@ class Acceptor
     {
         $waitor = $this->getInstance('waitor');
         if($waitor){
-            $waitor->onAcceptor('broadcast', $key, $data);
+            $waitor->toMediator('broadcast', $key, $data);
         }
         if(isset($this->subscriber[$key])){
             foreach($this->subscriber[$key] as $connId => $__){
@@ -189,7 +218,10 @@ class Acceptor
         if(!isset($this->subscriber[$key][$conn->id])){
             $this->subscriber[$key][$conn->id] = 1;
         }
-        $this->emiter->emit('acceptor', 'subscribe', $key);
+        $waitor = $this->getInstance('waitor');
+        if($waitor){
+            $waitor->toMediator('subscribe', $key);
+        }
         if(method_exists($conn, 'subscribe')){
             $conn->subscribe($key);
         }else{

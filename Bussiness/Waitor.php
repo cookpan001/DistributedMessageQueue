@@ -62,9 +62,9 @@ class Waitor
     /**
      * 处理由Acceptor发来的消息
      */
-    public function onAcceptor($op, ...$data)
+    public function toMediator($op, ...$data)
     {
-        $this->logger->log(__CLASS__.':'.__FUNCTION__. ','.$op.','. __LINE__);
+        $this->logger->log(__CLASS__.':'.__FUNCTION__. ','.$op.','. __LINE__ . ', '. json_encode($data));
         $this->client->push($op, ...$data);
     }
     /**
@@ -74,16 +74,18 @@ class Waitor
     {
         switch ($op) {
             case 'push':
-                $this->emiter->emit('waitor', $op, ...$data);
+                $acceptor = $this->getInstance('acceptor');
+                if($acceptor){
+                    $acceptor->send(...$data);
+                }
                 break;
             case 'ack':
-                list($key, $value) = $data;
-                $this->storage->remove($key, $value);
+                $this->storage->remove(...$data);
                 break;
             case 'broadcast':
                 $acceptor = $this->getInstance('acceptor');
                 if($acceptor){
-                    $acceptor->receiveBroadcast($key, $value);
+                    $acceptor->receiveBroadcast(...$data);
                 }
                 break;
             default:
