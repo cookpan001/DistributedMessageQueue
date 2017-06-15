@@ -1,11 +1,11 @@
 <?php
 
-include __DIR__ . DIRECTORY_SEPARATOR . 'base.php';
-include __DIR__ . DIRECTORY_SEPARATOR . 'autoload.php';
+include dirname(__DIR__) . DIRECTORY_SEPARATOR . 'base.php';
+include dirname(__DIR__) . DIRECTORY_SEPARATOR . 'autoload.php';
 $config = array(
     array(
         'codec' => 'cookpan001\Listener\Codec\MessagePack',
-        'class' => 'cookpan001\Listener\Bussiness\Acceptor',
+        'class' => 'cookpan001\Listener\Bussiness\MessageQueue\Acceptor',
         'name' => 'acceptor',
         'role' => 'server',
         'host' => '127.0.0.1',
@@ -23,7 +23,7 @@ $config = array(
     ),
     array(
         'codec' => 'cookpan001\Listener\Codec\MessagePack',
-        'class' => 'cookpan001\Listener\Bussiness\Waitor',
+        'class' => 'cookpan001\Listener\Bussiness\MessageQueue\Waitor',
         'name' => 'waitor',
         'role' => 'client',
         'host' => '127.0.0.1',

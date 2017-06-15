@@ -163,8 +163,10 @@ class Client
         if($this->codec){
             $m1 = microtime(true);
             $data = $this->codec->unserialize($str);
+            $m2 = microtime(true);
+            $this->log('unserialize: '. ($m2 - $m1) * 1000000 . ', len: '.strlen($str));
             $this->emit('message', $data);
-            $this->log('------'. (microtime(true) - $m1) * 1000000);
+            $this->log('processed: '. (microtime(true) - $m2) * 1000000);
         }else{
             $this->log('no codec found');
         }
@@ -178,7 +180,6 @@ class Client
             $w->stop();
             $that->emit('connect', $that);
             $that->watcher = new \EvIo($that->socket, \Ev::READ, function() use ($that){
-                $that->log('processing....');
                 $that->handle();
             });
         });

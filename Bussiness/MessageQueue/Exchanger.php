@@ -1,6 +1,6 @@
 <?php
 
-namespace cookpan001\Listener\Bussiness;
+namespace cookpan001\Listener\Bussiness\MessageQueue;
 
 class Exchanger
 {

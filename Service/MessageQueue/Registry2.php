@@ -1,15 +1,15 @@
 <?php
 
-include __DIR__ . DIRECTORY_SEPARATOR . 'base.php';
-include __DIR__ . DIRECTORY_SEPARATOR . 'autoload.php';
+include dirname(__DIR__) . DIRECTORY_SEPARATOR . 'base.php';
+include dirname(__DIR__) . DIRECTORY_SEPARATOR . 'autoload.php';
 $config = array(
     array(
         'codec' => 'cookpan001\Listener\Codec\MessagePack',
-        'class' => 'cookpan001\Listener\Bussiness\Mediator',
+        'class' => 'cookpan001\Listener\Bussiness\MessageQueue\Mediator',
         'role' => 'server',
         'name' => 'mediator',
         'host' => '127.0.0.1',
-        'port' => 5380,
+        'port' => 5381,
         'on' => array(
             'connect' => 'onConnect',
             'message' => 'onExchage',
@@ -22,11 +22,11 @@ $config = array(
         ),
     ),array(
         'codec' => 'cookpan001\Listener\Codec\MessagePack',
-        'class' => 'cookpan001\Listener\Bussiness\Exchanger',
+        'class' => 'cookpan001\Listener\Bussiness\MessageQueue\Exchanger',
         'role' => 'server',
         'name' => 'exchanger',
         'host' => '127.0.0.1',
-        'port' => 7380,
+        'port' => 7381,
         'on' => array(
             'connect' => 'onConnect',
             'message' => 'onExchage',
@@ -51,7 +51,7 @@ $config = array(
             
         ),
         'instance' => array(
-            array('127.0.0.1', 7381),
+            array('127.0.0.1', 7380),
         ),
         'after' => array(
             

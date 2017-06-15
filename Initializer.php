@@ -12,6 +12,8 @@ class Initializer
     public $storage = null;
     public $emiter = null;
     public $ignore = array();
+    public $terminate = 0;
+    public $signalWatcher = array();
     
     public function __construct()
     {
@@ -152,6 +154,68 @@ class Initializer
             return $this->config[$name];
         }
         return null;
+    }
+    
+    /**
+     * 生成守护进程
+     */
+    public function daemonize()
+    {
+        umask(0); //把文件掩码清0  
+        if (pcntl_fork() != 0){ //是父进程，父进程退出  
+            exit();  
+        }  
+        posix_setsid();//设置新会话组长，脱离终端  
+        if (pcntl_fork() != 0){ //是第一子进程，结束第一子进程     
+            exit();  
+        }
+    }
+    
+    public function initStream($service, $logPath = '')
+    {
+        global $STDIN, $STDOUT, $STDERR;
+        fclose(STDIN);  
+        fclose(STDOUT);  
+        fclose(STDERR);
+        if('' == $logPath || !file_exists($logPath)){
+            $logPath = __DIR__ . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR;
+        }
+        $STDIN  = fopen('/dev/null', 'r'); // STDIN
+        $STDOUT = fopen($logPath. "{$service}.log", 'a'); // STDOUT
+        $STDERR = fopen($logPath . "{$service}.error", 'a'); // STDERR
+        $this->signalWatcher[SIGTERM] = new \EvSignal(SIGTERM, function(){
+            $this->terminate = 1;
+            //$this->stop();
+        });
+        $this->signalWatcher[SIGUSR2] = new \EvSignal(SIGUSR2, function(){
+            $this->terminate = 1;
+            //$this->stop();
+            //$this->restart();
+        });
+        if (function_exists('gc_enable')){
+            gc_enable();
+        }
+        register_shutdown_function(function(){
+            if($this->terminate){
+                return;
+            }
+            $error = error_get_last();
+            $this->logger->error(json_encode($error, JSON_PARTIAL_OUTPUT_ON_ERROR));
+        });
+        set_error_handler(function($errno, $errstr, $errfile, $errline, $errcontext){
+            $str = sprintf("%s:%d\nerrcode:%d\t%s\n%s\n", $errfile, $errline, $errno, $errstr, json_encode($errcontext, JSON_PARTIAL_OUTPUT_ON_ERROR));
+            $this->logger->error($str);
+        });
+    }
+    
+    public function stop()
+    {
+        
+    }
+    
+    public function restart()
+    {
+        
     }
     
     public function start()
