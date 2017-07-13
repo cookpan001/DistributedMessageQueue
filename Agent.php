@@ -7,8 +7,8 @@ class Agent
     const SIZE = 1500;
     const END = "\r\n";
     
-    private $watcher = null;
-    private $periodTimer = null;
+    public $watcher = null;
+    public $periodTimer = null;
     public $codec = null;
     public $logger = null;
     public $callback = array();
@@ -28,6 +28,17 @@ class Agent
     public function __call($name, $arguments)
     {
         var_export('unknown method: '.$name . ', args: '. json_encode($arguments)."\n");
+    }
+    
+    public function stop()
+    {
+        $this->periodTimer->stop();
+        foreach($this->connected as $socket){
+            socket_close($socket);
+        }
+        foreach($this->watcher as $w){
+            $w->stop();
+        }
     }
     
     public function setCodec($codec)
@@ -52,6 +63,7 @@ class Agent
     
     public function connect()
     {
+        $needTimer = false;
         foreach($this->instances as $from => $line){
             if(isset($this->connected[$from])){
                 continue;
@@ -59,14 +71,27 @@ class Agent
             list($host, $port) = $line;
             $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
             if ($socket === FALSE) {
+                $needTimer = true;
                 continue;
             }
             if(!@\socket_connect($socket, $host, $port)){
+                $needTimer = true;
                 continue;
             }
             $this->log("connected to {$host}:{$port}");
             socket_set_nonblock($socket);
             $this->connected[$from] = $socket;
+        }
+        if($needTimer){
+            $this->periodTimer = new \EvPeriodic(0, 5, null, function(){
+                $this->connect();
+                $this->process();
+            });
+        }else{
+            if($this->periodTimer){
+                $this->periodTimer->stop();
+            }
+            $this->periodTimer = null;
         }
     }
     
@@ -208,11 +233,6 @@ class Agent
     
     public function start()
     {
-        $this->periodTimer = new \EvPeriodic(0, 5, null, function(){
-            //$this->logger->log('connect periodic');
-            $this->connect();
-            $this->process();
-        });
         $this->connect();
         $this->process();
     }

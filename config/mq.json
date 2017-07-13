@@ -1,0 +1,100 @@
+{
+    "service": {
+        "gateway": [
+            {
+                "codec": "cookpan001\\Listener\\Codec\\MessagePack",
+                "class": "cookpan001\\Listener\\Bussiness\\MessageQueue\\Acceptor",
+                "name": "acceptor",
+                "role": "server",
+                "on": {
+                    "connect": "onConnect",
+                    "message": "onMessage"
+                },
+                "emit": {
+                    "waitor": "onWaitor"
+                },
+                "after": [
+                    "onAfter"
+                ]
+            },
+            {
+                "codec": "cookpan001\\Listener\\Codec\\MessagePack",
+                "class": "cookpan001\\Listener\\Bussiness\\MessageQueue\\Waitor",
+                "name": "waitor",
+                "role": "client",
+                "on": {
+                    "connect": "onConnect",
+                    "message": "onMessage"
+                },
+                "emit": [],
+                "after": [
+                    "onAfter"
+                ]
+            }
+        ],
+        "registry": [
+            {
+                "codec": "cookpan001\\Listener\\Codec\\MessagePack",
+                "class": "cookpan001\\Listener\\Bussiness\\MessageQueue\\Mediator",
+                "role": "server",
+                "name": "mediator",
+                "on": {
+                    "connect": "onConnect",
+                    "message": "onExchage"
+                }
+            },
+            {
+                "codec": "cookpan001\\Listener\\Codec\\MessagePack",
+                "class": "cookpan001\\Listener\\Bussiness\\MessageQueue\\Exchanger",
+                "role": "server",
+                "name": "exchanger",
+                "on": {
+                    "connect": "onConnect",
+                    "message": "onExchage"
+                }
+            },
+            {
+                "codec": "cookpan001\\Listener\\Codec\\MessagePack",
+                "class": "cookpan001\\Listener\\Bussiness\\Coordinator",
+                "name": "coordinator",
+                "role": "agent",
+                "on": {
+                    "connect": "onConnect",
+                    "message": "onMessage"
+                }
+            }
+        ]
+    },
+    "address": {
+        "gateway": [
+            {
+                "acceptor":{"host": "127.0.0.1","port": 6380},
+                "waitor":{"host": "127.0.0.1","port": 5380}
+            },
+            {
+                "acceptor":{"host": "127.0.0.1","port": 6381},
+                "waitor":{"host": "127.0.0.1","port": 5381}
+            }
+        ],
+        "registry": [
+            {
+                "mediator":{"host": "127.0.0.1","port": 5380},
+                "exchanger":{"host": "127.0.0.1","port": 7380},
+                "coordinator":{
+                    "instance": [
+                        ["127.0.0.1",7381]
+                    ]
+                }
+            },
+            {
+                "mediator":{"host": "127.0.0.1","port": 5381},
+                "exchanger":{"host": "127.0.0.1","port": 7381},
+                "coordinator":{
+                    "instance": [
+                        ["127.0.0.1",7380]
+                    ]
+                }
+            }
+        ]
+    }
+}

@@ -27,6 +27,11 @@ class Client
         var_export('unknown method: '.$name . ', args: '. json_encode($arguments)."\n");
     }
     
+    public function stop()
+    {
+        socket_close($this->socket);
+    }
+    
     public function setCodec($codec)
     {
         $this->codec = $codec;
@@ -49,23 +54,32 @@ class Client
     
     public function connect()
     {
-        while(true){
-            $this->socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-            if ($this->socket === FALSE) {
-                //echo "socket_create() failed: reason: ".socket_strerror(socket_last_error()) . "\n";
-                sleep(1);
-                continue;
-            }
-            if(!@socket_connect($this->socket, $this->host, $this->port)){
-                //echo "socket_connect() failed: reason: ".socket_strerror(socket_last_error()) . "\n";
-                sleep(1);
-                continue;
-            }
-            $this->log("connected to {$this->host}:{$this->port}");
-            break;
+        if(!is_null($this->socket)){
+            return 0;
         }
+        $this->socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+        if ($this->socket === FALSE) {
+            $this->socket = null;
+            $this->periodTimer = new \EvPeriodic(0, 1, null, function(){
+                $this->connect();
+            });
+            return false;
+        }
+        if(!@socket_connect($this->socket, $this->host, $this->port)){
+            $this->socket = null;
+            $this->periodTimer = new \EvPeriodic(0, 1, null, function(){
+                $this->connect();
+            });
+            return false;
+        }
+        $this->log("connected to {$this->host}:{$this->port}");
         socket_set_nonblock($this->socket);
-        return $this;
+        $this->process();
+        if($this->periodTimer){
+            $this->periodTimer->stop();
+            $this->periodTimer = null;
+        }
+        return true;
     }
     
     public function log($message)
@@ -115,8 +129,9 @@ class Client
             if((0 === $errorCode && null === $tmp) || EPIPE == $errorCode || ECONNRESET == $errorCode){
                 $this->watcher->stop();
                 socket_close($this->socket);
+                $this->socket = null;
+                $this->watcher = null;
                 $this->connect();
-                $this->process();
                 return false;
             }
             if(0 === $num){
@@ -143,8 +158,9 @@ class Client
         if((EPIPE == $errorCode || ECONNRESET == $errorCode)){
             $this->watcher->stop();
             socket_close($this->socket);
+            $this->socket = null;
+            $this->watcher = null;
             $this->connect();
-            $this->process();
             return false;
         }
         //$this->log("socket write len: ". json_encode($num) .", ". json_encode($str) );
@@ -188,6 +204,5 @@ class Client
     public function start()
     {
         $this->connect();
-        $this->process();
     }
 }

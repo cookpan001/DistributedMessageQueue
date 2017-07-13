@@ -35,6 +35,11 @@ class Listener
         $this->logger->log('unknown method: '.$name . ', args: '. json_encode($arguments)."\n");
     }
     
+    public function stop()
+    {
+        socket_close($this->socket);
+    }
+    
     public function create()
     {
         $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);

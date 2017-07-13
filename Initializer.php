@@ -4,6 +4,8 @@ namespace cookpan001\Listener;
 
 class Initializer
 {
+    public $index;
+    public $service;
     public $config = array();
     public $listener = array();
     public $handler = array();
@@ -15,11 +17,13 @@ class Initializer
     public $terminate = 0;
     public $signalWatcher = array();
     
-    public function __construct()
+    public function __construct($service = '', $index = 0)
     {
         $this->logger = new Logger();
         $this->storage = new Storage();
         $this->emiter = new Emiter();
+        $this->service = $service;
+        $this->index = $index;
     }
     
     public function __destruct()
@@ -47,8 +51,10 @@ class Initializer
         $server->setId($conf['name']);
         if(isset($conf['class']) && class_exists($conf['class'])){
             $obj = new $conf['class']($this, $conf['name']);
-            foreach($conf['emit'] as $condition => $callback){
-                $this->emiter->on($condition, array($obj, $callback));
+            if(!empty($conf['emit'])){
+                foreach($conf['emit'] as $condition => $callback){
+                    $this->emiter->on($condition, array($obj, $callback));
+                }
             }
             $this->handler[strtolower($conf['name'])] = $obj;
             $server->setHandler($obj);
@@ -81,8 +87,10 @@ class Initializer
         $client->setId($conf['name']);
         if(isset($conf['class']) && class_exists($conf['class'])){
             $obj = new $conf['class']($this, $conf['name'], $client);
-            foreach($conf['emit'] as $condition => $callback){
-                $this->emiter->on($condition, array($obj, $callback));
+            if(!empty($conf['emit'])){
+                foreach($conf['emit'] as $condition => $callback){
+                    $this->emiter->on($condition, array($obj, $callback));
+                }
             }
             $this->handler[strtolower($conf['name'])] = $obj;
             $client->setHandler($obj);
@@ -159,7 +167,7 @@ class Initializer
     /**
      * 生成守护进程
      */
-    public function daemonize()
+    public function daemonize($logPath = '')
     {
         umask(0); //把文件掩码清0  
         if (pcntl_fork() != 0){ //是父进程，父进程退出  
@@ -169,9 +177,10 @@ class Initializer
         if (pcntl_fork() != 0){ //是第一子进程，结束第一子进程     
             exit();  
         }
+        $this->initStream($logPath);
     }
     
-    public function initStream($service, $logPath = '')
+    public function initStream($logPath = '')
     {
         global $STDIN, $STDOUT, $STDERR;
         fclose(STDIN);  
@@ -180,12 +189,15 @@ class Initializer
         if('' == $logPath || !file_exists($logPath)){
             $logPath = __DIR__ . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR;
         }
+        if(!file_exists($logPath)){
+            mkdir($logPath, 0644, true);
+        }
         $STDIN  = fopen('/dev/null', 'r'); // STDIN
-        $STDOUT = fopen($logPath. "{$service}.log", 'a'); // STDOUT
-        $STDERR = fopen($logPath . "{$service}.error", 'a'); // STDERR
+        $STDOUT = fopen($logPath. "{$this->service}_{$this->index}.log", 'a'); // STDOUT
+        $STDERR = fopen($logPath . "{$this->service}_{$this->index}.error", 'a'); // STDERR
         $this->signalWatcher[SIGTERM] = new \EvSignal(SIGTERM, function(){
             $this->terminate = 1;
-            //$this->stop();
+            $this->stop();
         });
         $this->signalWatcher[SIGUSR2] = new \EvSignal(SIGUSR2, function(){
             $this->terminate = 1;
@@ -210,7 +222,7 @@ class Initializer
     
     public function stop()
     {
-        
+        \Ev::stop();
     }
     
     public function restart()
