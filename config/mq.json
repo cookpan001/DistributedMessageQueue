@@ -68,8 +68,9 @@
     "address": {
         "registry": [
             {
-                "mediator":{"host": "127.0.0.1","port": 5380},
-                "exchanger":{"host": "127.0.0.1","port": 7380},
+                "host": "127.0.0.1",
+                "mediator":{"port": 5380},
+                "exchanger":{"port": 7380},
                 "coordinator":{
                     "instance": [
                         ["127.0.0.1",7381]
@@ -77,8 +78,9 @@
                 }
             },
             {
-                "mediator":{"host": "127.0.0.1","port": 5381},
-                "exchanger":{"host": "127.0.0.1","port": 7381},
+                "host": "127.0.0.1",
+                "mediator":{"port": 5381},
+                "exchanger":{"port": 7381},
                 "coordinator":{
                     "instance": [
                         ["127.0.0.1",7380]
@@ -88,11 +90,13 @@
         ],
         "gateway": [
             {
-                "acceptor":{"host": "127.0.0.1","port": 6380},
+                "host": "127.0.0.1",
+                "acceptor":{"port": 6380},
                 "waitor":{"host": "127.0.0.1","port": 5380}
             },
             {
-                "acceptor":{"host": "127.0.0.1","port": 6381},
+                "host": "127.0.0.1",
+                "acceptor":{"port": 6381},
                 "waitor":{"host": "127.0.0.1","port": 5381}
             }
         ]

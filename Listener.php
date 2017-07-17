@@ -17,6 +17,7 @@ class Listener
     public $socketLoop = null;
     public $id = 0;
     public $handler = null;
+    public $periodTimer = null;
 
     public function __construct($host, $port, $codec, $logger = null)
     {
@@ -45,19 +46,32 @@ class Listener
         $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
         if(!$socket){
             $this->logger->log("Unable to create socket");
-            exit(1);
+            $this->periodTimer = new \EvPeriodic(0, 1, null, function(){
+                $this->create();
+            });
+            return false;
         }
         socket_set_option($socket, SOL_SOCKET, SO_REUSEADDR, 1);
         if(!socket_bind($socket, $this->host, $this->port)){
             $this->logger->log("Unable to bind socket port: ".$this->port);
-            exit(1);
+            $this->periodTimer = new \EvPeriodic(0, 1, null, function(){
+                $this->create();
+            });
+            return false;
         }
         if(!socket_listen($socket)){
-            $this->logger->log("Unable to bind socket");
-            exit(1);
+            $this->logger->log("Unable to listen socket");
+            $this->periodTimer = new \EvPeriodic(0, 1, null, function(){
+                $this->create();
+            });
+            return false;
         }
         socket_set_nonblock($socket);
         $this->socket = $socket;
+        if($this->periodTimer){
+            $this->periodTimer->stop();
+            $this->periodTimer = null;
+        }
     }
     
     public function setCodec($codec)

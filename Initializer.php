@@ -232,6 +232,7 @@ class Initializer
         \Ev::stop();
         global $argv;
         $command = "php " . implode(' ', $argv);
+        $this->logger->log($command);
         exec($command);
     }
     
