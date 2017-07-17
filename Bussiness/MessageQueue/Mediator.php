@@ -37,7 +37,7 @@ class Mediator
     /**
      * Acceptor间信息交换时使用, Socket
      */
-    public function onExchage($conn, $data)
+    public function onExchange($conn, $data)
     {
         if(empty($data)){
             return;
@@ -95,6 +95,7 @@ class Mediator
                     unset($this->keys[$key][$id]);
                     continue;
                 }
+                $this->logger->log(__CLASS__.':'.__FUNCTION__ . ', mediator push');
                 $this->connections[$id]->reply('mediator', 'push', $key, $value);
                 $conn->reply('mediator', 'ack', $key, $value);
                 return true;
@@ -171,12 +172,16 @@ class Mediator
             }
             $update[$key] = count($this->keys[$key]);
         }
-        $this->logger->log(__CLASS__.'::'.__FUNCTION__.', '. json_encode($update));
         if($update){
             $coordinator = $this->app->getInstance('coordinator');
             if($coordinator){
+                $this->logger->log(__CLASS__.'::'.__FUNCTION__.', send to coordinator');
                 $coordinator->notify(array_keys($update), array_values($update));
+            }else{
+                $this->logger->log(__CLASS__.'::'.__FUNCTION__.', no coordinator found');
             }
+        }else{
+            $this->logger->log(__CLASS__.'::'.__FUNCTION__.', nothing update to peer');
         }
     }
     

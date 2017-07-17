@@ -1,7 +1,7 @@
 <?php
 
-include dirname(__DIR__) . DIRECTORY_SEPARATOR . 'base.php';
-include dirname(__DIR__) . DIRECTORY_SEPARATOR . 'autoload.php';
+include dirname(dirname(__DIR__)) . DIRECTORY_SEPARATOR . 'base.php';
+include dirname(dirname(__DIR__)) . DIRECTORY_SEPARATOR . 'autoload.php';
 $config = array(
     array(
         'codec' => 'cookpan001\Listener\Codec\MessagePack',

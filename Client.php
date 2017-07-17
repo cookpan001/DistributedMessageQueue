@@ -15,6 +15,7 @@ class Client
     public $callback = array();
     public $id = 0;
     public $handler = 0;
+    public $periodTimer = null;
     
     public function __construct($host = '127.0.0.1', $port = 6379)
     {

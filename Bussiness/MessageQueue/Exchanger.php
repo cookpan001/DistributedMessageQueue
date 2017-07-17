@@ -32,7 +32,7 @@ class Exchanger
     /**
      * Acceptor间信息交换时使用, Socket
      */
-    public function onExchage($conn, $data)
+    public function onExchange($conn, $data)
     {
         if(empty($data)){
             return;
@@ -146,16 +146,19 @@ class Exchanger
     public function push($key, $value)
     {
         if(!isset($this->keys[$key])){
+            $this->logger->log(__CLASS__.':'.__FUNCTION__.", no key:{$key} in peers");
             return false;
         }
         foreach($this->keys[$key] as $connId => $num){
             if($num <= 0){
                 continue;
             }
+            $this->logger->log(__CLASS__.':'.__FUNCTION__.', push to coordinator');
             $conn = $this->connections[$connId];
             $conn->reply('push', $key, $value);
             return true;
         }
+        $this->logger->log(__CLASS__.':'.__FUNCTION__.', no available coordinator to push');
         return false;
     }
 }

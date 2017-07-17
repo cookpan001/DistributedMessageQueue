@@ -140,8 +140,11 @@ class Initializer
         }
     }
     
-    public function getInstance($name0)
+    public function getInstance($name0 = '')
     {
+        if('' == $name0){
+            return $this->handler;
+        }
         $name = strtolower($name0);
         if(isset($this->handler[$name])){
             return $this->handler[$name];
@@ -201,8 +204,7 @@ class Initializer
         });
         $this->signalWatcher[SIGUSR2] = new \EvSignal(SIGUSR2, function(){
             $this->terminate = 1;
-            //$this->stop();
-            //$this->restart();
+            $this->restart();
         });
         if (function_exists('gc_enable')){
             gc_enable();
@@ -227,7 +229,10 @@ class Initializer
     
     public function restart()
     {
-        
+        \Ev::stop();
+        global $argv;
+        $command = "php " . implode(' ', $argv);
+        exec($command);
     }
     
     public function start()

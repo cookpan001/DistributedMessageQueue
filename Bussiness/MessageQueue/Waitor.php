@@ -64,7 +64,7 @@ class Waitor
      */
     public function toMediator($op, ...$data)
     {
-        $this->logger->log(__CLASS__.':'.__FUNCTION__. ','.$op.','. __LINE__ . ', '. json_encode($data));
+        $this->logger->log(__CLASS__.':'.__FUNCTION__.'::'. __LINE__. ',op:'.$op . ', '. json_encode($data));
         $this->client->push($op, ...$data);
     }
     /**

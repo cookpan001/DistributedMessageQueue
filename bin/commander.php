@@ -38,10 +38,11 @@ class Commander
         if(!isset($config['service']) || !isset($config['address'])){
             return;
         }
-        foreach($config['service'] as $name => $conf){
-            exec('grep ' . self::STARTER . "$path {$name} | grep -v 'grep' | awk '{print $2}' | xargs kill -s SIGTERM");
-            foreach($config['address'][$conf['name']] as $i => $address){
-                exec(__DIR__ . DIRECTORY_SEPARATOR . self::STARTER . " $path {$name} {$i}");
+        foreach($config['address'] as $name => $conf){
+            foreach($conf as $i => $address){
+                $shell = "ps aux | grep '" . self::STARTER . " {$path} {$name} {$i}' | grep -v 'grep' | awk '{print $2}' | xargs kill -s SIGUSR2";
+                echo date('Y-m-d H:i:s')."\t$shell\n";
+                exec($shell);
             }
         }
     }

@@ -11,9 +11,9 @@ $setting = json_decode(file_get_contents($path), true);
 if(!isset($setting['service'][$service]) || !isset($setting['address'][$service])){
     exit("service: $service not configured\n");
 }
-$app = new cookpan001\Listener\Initializer($service);
+$app = new cookpan001\Listener\Initializer($service, $index);
 $app->daemonize();
-$config = array();$setting['service'][$service] + $setting['address'][$service][$index];
+$config = array();
 foreach($setting['service'][$service] as $item){
     $config[] = $item + $setting['address'][$service][$index][$item['name']];
 }

@@ -1,7 +1,7 @@
 <?php
 
-include dirname(__DIR__) . DIRECTORY_SEPARATOR . 'base.php';
-include dirname(__DIR__) . DIRECTORY_SEPARATOR . 'autoload.php';
+include dirname(dirname(__DIR__)) . DIRECTORY_SEPARATOR . 'base.php';
+include dirname(dirname(__DIR__)) . DIRECTORY_SEPARATOR . 'autoload.php';
 
 function now()
 {
@@ -15,7 +15,7 @@ $config = array(
         'name' => 'waitor',
         'role' => 'client',
         'host' => '127.0.0.1',
-        'port' => 6380,
+        'port' => 6381,
         'on' => array(
             
         ),

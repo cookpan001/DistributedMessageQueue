@@ -63,7 +63,7 @@ class Agent
     
     public function connect()
     {
-        $needTimer = false;
+        $needTimer = true;
         foreach($this->instances as $from => $line){
             if(isset($this->connected[$from])){
                 continue;
@@ -71,19 +71,20 @@ class Agent
             list($host, $port) = $line;
             $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
             if ($socket === FALSE) {
-                $needTimer = true;
                 continue;
             }
             if(!@\socket_connect($socket, $host, $port)){
-                $needTimer = true;
                 continue;
             }
             $this->log("connected to {$host}:{$port}");
             socket_set_nonblock($socket);
             $this->connected[$from] = $socket;
         }
+        if(count($this->instances) > 0 && count($this->connected) == count($this->instances)){
+            $needTimer = false;
+        }
         if($needTimer){
-            $this->periodTimer = new \EvPeriodic(0, 5, null, function(){
+            $this->periodTimer = new \EvPeriodic(0, 1, null, function(){
                 $this->connect();
                 $this->process();
             });
